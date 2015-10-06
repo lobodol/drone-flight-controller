@@ -19,34 +19,35 @@ float* calcErrors(float mesures[3], int cmd[3])
  * Lecture des commandes : Yaw, Pitch, Roll, Gaz
  * @return int[4] : tableau des commandes
  */
-int* getCommandes()
+int* getCommandes(int etat)
 {
   static int cmd[4];
   
-  cmd[0] = 0;  // Lacet
-  cmd[1] = 0;  // Tantgage
-  cmd[2] = 0;  // Rouli
-  cmd[3] = 50; // Gaz
+  cmd[0] = 0;  // Lacet (Yaw)
+  cmd[1] = 0;  // Tangage (Pitch)
+  cmd[2] = 0;  // Rouli (Roll)
+  cmd[3] = etat ? map(60, 0, 100, 0, 180) : 0; // Gaz
 
   return cmd;
 }
 
 /**
- * Rectifie une commande si elle est supérieure à 1024 ou inférieure à 0
+ * Rectifie une commande si elle est supérieure à 180 ou inférieure à 0
  * @param float value
- * @return int : [0, 1024]
+ * @return int : [0, 180]
  */
 int normaliser(float value)
 {
-  value = (int)value;
+  int maxVal = 180;
+  value      = (int)value;
   
-	if (value > 1024) {
-		value = 1024;
-	} else if (value < 0) {
-		value = 0;
-	}
+  if (value > maxVal) {
+    value = maxVal;
+  } else if (value < 0) {
+    value = 0;
+  }
 
-	return value;
+  return value;
 }
 
 /**
@@ -69,9 +70,13 @@ int normaliser(float value)
  */
 int* asservissementP(float errors[3], int cmd_h)
 {
-  int Kp = 1; // Coefficient de proportionnalité
-  int aKp[3] = {1, 1, 1};
-  static int commandes[4];
+  //int Kp = 1; // Coefficient de proportionnalité
+  float Kp[3] = {1.5, 1.5, 1}; // Coefficient P dans l'ordre : Yaw, Pitch, Roll
+  static int commandes[4] = {0,0,0,0};
+
+  if (cmd_h == 0) {
+      return commandes;
+  }
 
   // Initialisation des commandes moteur
   int cmd_motA = cmd_h;
@@ -79,25 +84,25 @@ int* asservissementP(float errors[3], int cmd_h)
   int cmd_motC = cmd_h;
   int cmd_motD = cmd_h;
 
-  // Lacet (Z)
-  cmd_motA -= errors[0] * Kp;
-  cmd_motD -= errors[0] * Kp;
-  cmd_motC += errors[0] * Kp;
-  cmd_motB += errors[0] * Kp;
+  // Yaw - Lacet (Z)
+  cmd_motA -= errors[0] * Kp[0];
+  cmd_motD -= errors[0] * Kp[0];
+  cmd_motC += errors[0] * Kp[0];
+  cmd_motB += errors[0] * Kp[0];
 
-  // Tangage (Y)
-  cmd_motA -= errors[1] * Kp;
-  cmd_motB -= errors[1] * Kp;
-  cmd_motC += errors[1] * Kp;
-  cmd_motD += errors[1] * Kp;
-  
-  // Roulis (X)
-  cmd_motA -= errors[2] * Kp;
-  cmd_motC -= errors[2] * Kp;
-  cmd_motB += errors[2] * Kp;
-  cmd_motD += errors[2] * Kp;
+  // Pitch - Tangage (Y)
+  cmd_motA -= errors[1] * Kp[1];
+  cmd_motB -= errors[1] * Kp[1];
+  cmd_motC += errors[1] * Kp[1];
+  cmd_motD += errors[1] * Kp[1];
 
-  // Cas limites [0, 255]
+  // Roll - Roulis (X)
+  cmd_motA -= errors[2] * Kp[2];
+  cmd_motC -= errors[2] * Kp[2];
+  cmd_motB += errors[2] * Kp[2];
+  cmd_motD += errors[2] * Kp[2];
+
+  // Cas limites [0, 180]
   commandes[0] = normaliser(cmd_motA);
   commandes[1] = normaliser(cmd_motB);
   commandes[2] = normaliser(cmd_motC);
@@ -105,3 +110,102 @@ int* asservissementP(float errors[3], int cmd_h)
 
   return commandes;
 }
+
+/**
+ * Asservissement de type Proportionnel Intégral
+ * @param float[3] errors :
+ * @param int cmd_h : commande des gaz (throttle)
+ */
+int* asservissementPI(float errors[3], int cmd_h, float* sErr)
+{
+  static int commandes[4];
+  float Kp[3] = {1.5, 1.5, 1}; // Coefficient P dans l'ordre : Yaw, Pitch, Roll
+  float Ki[3] = {1, 1, 1}; // Coefficient I dans l'ordre : Yaw, Pitch, Roll
+  // Initialisation des commandes moteur
+  int cmd_motA = cmd_h;
+  int cmd_motB = cmd_h;
+  int cmd_motC = cmd_h;
+  int cmd_motD = cmd_h;
+
+  // Calcul la somme des erreurs : composante Intégrale
+  sErr[0] += errors[0]; // Yaw
+  sErr[1] += errors[1]; // Pitch
+  sErr[2] += errors[2]; // Roll
+
+  // Yaw
+  cmd_motA -= (errors[0] * Kp[0] + sErr[0] * Ki[0]);
+  cmd_motD -= (errors[0] * Kp[0] + sErr[0] * Ki[0]);
+  cmd_motC += (errors[0] * Kp[0] + sErr[0] * Ki[0]);
+  cmd_motB += (errors[0] * Kp[0] + sErr[0] * Ki[0]);
+
+  // Pitch - Tangage (Y)
+  cmd_motA -= (errors[1] * Kp[1] + sErr[1] * Ki[1]);
+  cmd_motB -= (errors[1] * Kp[1] + sErr[1] * Ki[1]);
+  cmd_motC += (errors[1] * Kp[1] + sErr[1] * Ki[1]);
+  cmd_motD += (errors[1] * Kp[1] + sErr[1] * Ki[1]);
+  
+  // Roll - Roulis (X)
+  cmd_motA -= (errors[2] * Kp[2] + sErr[2] * Ki[2]);
+  cmd_motC -= (errors[2] * Kp[2] + sErr[2] * Ki[2]);
+  cmd_motB += (errors[2] * Kp[2] + sErr[2] * Ki[2]);
+  cmd_motD += (errors[2] * Kp[2] + sErr[2] * Ki[2]);
+
+  // Cas limites [0, 180]
+  commandes[0] = normaliser(cmd_motA);
+  commandes[1] = normaliser(cmd_motB);
+  commandes[2] = normaliser(cmd_motC);
+  commandes[3] = normaliser(cmd_motD);
+
+  return commandes;
+}
+
+/*
+int* asservissementPID(float errors, int cmd_h, float* sErr, float* lastErr)
+{
+  static int commandes[4];
+  int Kp[3] = {1, 1, 1}; // Coefficients P dans l'ordre : Yaw, Pitch, Roll
+  int Ki[3] = {1, 1, 1}; // Coefficients I dans l'ordre : Yaw, Pitch, Roll
+  int Kd[3] = {1, 1, 1}; // Coefficients D dans l'ordre : Yaw, Pitch, Roll
+  // Initialisation des commandes moteur
+  int cmd_motA = cmd_h;
+  int cmd_motB = cmd_h;
+  int cmd_motC = cmd_h;
+  int cmd_motD = cmd_h;
+
+  // Calcul la somme des erreurs : composante Intégrale
+  sErr[0] += errors[0]; // Yaw
+  sErr[1] += errors[1]; // Pitch
+  sErr[2] += errors[2]; // Roll
+
+  // Yaw - Lacet (Z)
+  cmd_motA -= (errors[0] * Kp[0] + sErr[0] * Ki[0] + lastErr[0] * Kd[0]);
+  cmd_motD -= (errors[0] * Kp[0] + sErr[0] * Ki[0] + lastErr[0] * Kd[0]);
+  cmd_motC += (errors[0] * Kp[0] + sErr[0] * Ki[0] + lastErr[0] * Kd[0]);
+  cmd_motB += (errors[0] * Kp[0] + sErr[0] * Ki[0] + lastErr[0] * Kd[0]);
+
+  // Pitch - Tangage (Y)
+  cmd_motA -= (errors[1] * Kp[1] + sErr[1] * Ki[1] + lastErr[1] * Kd[1]);
+  cmd_motB -= (errors[1] * Kp[1] + sErr[1] * Ki[1] + lastErr[1] * Kd[1]);
+  cmd_motC += (errors[1] * Kp[1] + sErr[1] * Ki[1] + lastErr[1] * Kd[1]);
+  cmd_motD += (errors[1] * Kp[1] + sErr[1] * Ki[1] + lastErr[1] * Kd[1]);
+
+  // Roll - Roulis (X)
+  cmd_motA -= (errors[2] * Kp[2] + sErr[2] * Ki[2] + lastErr[2] * Kd[2]);
+  cmd_motC -= (errors[2] * Kp[2] + sErr[2] * Ki[2] + lastErr[2] * Kd[2]);
+  cmd_motB += (errors[2] * Kp[2] + sErr[2] * Ki[2] + lastErr[2] * Kd[2]);
+  cmd_motD += (errors[2] * Kp[2] + sErr[2] * Ki[2] + lastErr[2] * Kd[2]);
+
+  // Sauvegarde de la dernière erreur
+  lastErr[0] = errors[0];
+  lastErr[1] = errors[1];
+  lastErr[2] = errors[2];
+
+  // Cas limites [0, 180]
+  commandes[0] = normaliser(cmd_motA);
+  commandes[1] = normaliser(cmd_motB);
+  commandes[2] = normaliser(cmd_motC);
+  commandes[3] = normaliser(cmd_motD);
+
+  return commandes;
+}
+*/
