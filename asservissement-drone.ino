@@ -1,23 +1,41 @@
+// ---------------------------------------------------------------------------
 #include <Wire.h>
 #include <I2Cdev.h>
 #include <Servo.h>
 #include "MPU6050_6Axis_MotionApps20.h"
 #include "asservissement.h"
-
+#include "SoftwareSerial.h"
+// ------------------- Déclaration des constantes ----------------------------
+#define MAX_THROTTLE 180
+#define STX          0x02
+#define ETX          0x03
+// ------------------ Déclaration des commandes moteurs ----------------------
+Servo motA;
+Servo motB;
+Servo motC;
+Servo motD;
+// ------------- Variables pour l'asservissement -----------------------------
+int*   cmd;                       // Commandes reçues : [Yaw, Pitch, Roll, Throttle]
+int*   cmdMot;                    // Commandes à appliquer aux moteurs : [MotA, MotB, MotC, MotD]
+int    lastThrottle  = 0;         // Dernière valeur lue
+float* errors;                    // Erreurs mesurées : [Yaw, Pitch, Roll]
+float  mesures[3]    = {0,0,0};   // Mesures des angles [Yaw, Pitch, Roll]
+float  lastErr[3]    = {0, 0, 0}; // Valeur de l'erreur précédente : composante Dérivée [Yaw, Pitch, Roll]
+//float* sErr[3]       = {0, 0, 0}; // Sommes des erreurs : composante Intégrale [Yaw, Pitch, Roll]
+float* sErr;
+// -------------- Variables pour la communication bluetooth ------------------
+int etat             = 0;                        // 0 : OFF - 1 : ON
+SoftwareSerial mySerial(8,9);                    // BlueTooth module: pin#8=TX pin#9=RX
+byte rec[8]          = {0, 0, 0, 0, 0, 0, 0, 0}; // bytes received
+byte buttonStatus    = 0;                        // first Byte sent to Android device
+long previousMillis  = 0;                        // will store last time Buttons status was updated
+String displayStatus = "xxxx";                   // message to Android device
+// ---------------- Variables du MPU650 --------------------------------------
 // class default I2C address is 0x68
 // specific I2C addresses may be passed as a parameter here
 // AD0 low = 0x68 (default for SparkFun breakout and InvenSense evaluation board)
 // AD0 high = 0x69
 MPU6050 mpu;
-Servo motA;
-Servo motB;
-Servo motC;
-Servo motD;
-
-#define LED_PIN 13
-
-bool blinkState = false;
-
 // MPU control/status vars
 bool dmpReady = false;  // set true if DMP init was successful
 uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
@@ -38,46 +56,33 @@ float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gra
 // packet structure for InvenSense teapot demo
 uint8_t teapotPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
 int x = 0;
-int* cmd;
-float* errors;
-float mesures[3] = {0,0,0};
-int* cmdMot;
-
-
-
-// ================================================================
-// ===               INTERRUPT DETECTION ROUTINE                ===
-// ================================================================
 
 volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
+// ---------------------------------------------------------------------------
+
+
+
+/**
+ * Interrup détection routine
+ */
 void dmpDataReady() {
     mpuInterrupt = true;
 }
 
 
 
-// ================================================================
-// ===                      INITIAL SETUP                       ===
-// ================================================================
-
+/**
+ * Setup configuration
+ */
 void setup() {
-    // join I2C bus (I2Cdev library doesn't do this automatically)
+    init_imu();
+        
     Wire.begin();
-    
-    // initialize serial communication
-    // (115200 chosen because it is required for Teapot Demo output, but it's
-    // really up to you depending on your project)
-    Serial.begin(115200);
-    //Serial.begin(9600);
-    //while (!Serial); // wait for Leonardo enumeration, others continue immediately
+    TWBR = 24; // 400kHz I2C clock (200kHz if CPU is 8MHz)    
 
-    // NOTE: 8MHz or slower host processors, like the Teensy @ 3.3v or Ardunio
-    // Pro Mini running at 3.3v, cannot handle this baud rate reliably due to
-    // the baud timing being too misaligned with processor ticks. You must use
-    // 38400 or slower in these cases, or use some kind of external separate
-    // crystal solution for the UART timer.
+    Serial.begin(57600); // Provoque beaucoup de FIFO Overflow en dessous de 38400 bauds
+    mySerial.begin(9600); // TODO vérifier si on peut augmenter le bitrate
 
-    // initialize device
     Serial.println(F("Initializing I2C devices..."));
     mpu.initialize();
 
@@ -85,24 +90,26 @@ void setup() {
     Serial.println(F("Testing device connections..."));
     Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 
-    // wait for ready
-    Serial.println(F("\nSend any character to begin DMP programming and demo: "));
-    while (Serial.available() && Serial.read()); // empty buffer
-    while (!Serial.available());                 // wait for data
-    while (Serial.available() && Serial.read()); // empty buffer again
-
     // load and configure the DMP
     Serial.println(F("Initializing DMP..."));
     devStatus = mpu.dmpInitialize();
+
+    // Calibration du MPU
+    mpu.setXAccelOffset(377);
+    mpu.setYAccelOffset(-4033);
+    mpu.setZAccelOffset(1591);
+    mpu.setXGyroOffset(115);
+    mpu.setYGyroOffset(101);
+    mpu.setZGyroOffset(32);
     
-    // make sure it worked (returns 0 if so)
+    // Returns 0 if it worked
     if (devStatus == 0) {
         // turn on the DMP, now that it's ready
         Serial.println(F("Enabling DMP..."));
         mpu.setDMPEnabled(true);
 
         // enable Arduino interrupt detection
-        Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)..."));
+        Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0 : #pin2)..."));
         attachInterrupt(0, dmpDataReady, RISING);
         mpuIntStatus = mpu.getIntStatus();
 
@@ -122,21 +129,23 @@ void setup() {
         Serial.println(F(")"));
     }
 
-    motA.attach(3);
-    motB.attach(4);
-    motC.attach(5);
-    motD.attach(6);
+    // Init the error sum
+    sErr[0] = 0; // Yaw
+    sErr[1] = 0; // Pitch
+    sErr[2] = 0; // Roll
 
-    // configure LED for output
-    pinMode(LED_PIN, OUTPUT);
+    motA.attach(4);
+    motB.attach(5);
+    motC.attach(6);
+    motD.attach(7);
+
+    initialize_motor();
 }
 
 
-
-// ================================================================
-// ===                    MAIN PROGRAM LOOP                     ===
-// ================================================================
-
+/**
+ * Main program loop
+ */
 void loop() {
     // if programming failed, don't try to do anything
     if (!dmpReady) {
@@ -168,8 +177,12 @@ void loop() {
         }
 
         //--- 1. Lecture des commandes moteur ---
-        cmd = getCommandes();
-        /*Serial.print("Commandes : ");
+        getState();
+        cmd = getCommandes(etat);
+        //cmd = getCommands();
+
+        /*
+        Serial.print("Commandes : ");
         Serial.print(cmd[0]);
         Serial.print(";");
         Serial.print(cmd[1]);
@@ -192,12 +205,13 @@ void loop() {
         mpu.dmpGetGravity(&gravity, &q);
         mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
 
-        mesures[0] = ypr[0] * 180/M_PI; // Yaw   : lacet
+        // TODO : set the resolution number
+        mesures[0] = 0*ypr[0] * 180/M_PI; // Yaw   : lacet
         mesures[1] = ypr[1] * 180/M_PI; // Pitch : tangage
         mesures[2] = ypr[2] * 180/M_PI; // Roll  : rouli
 
-        
-        /*Serial.print(mesures[0]);
+        /*
+        Serial.print(mesures[0]);
         Serial.print(";");
         Serial.print(mesures[1]);
         Serial.print(";");
@@ -205,7 +219,7 @@ void loop() {
         Serial.print(";");
         Serial.print(x);
         Serial.print("\n");*/
-
+        
         //--- 3. Calcul des erreurs ---
         errors = calcErrors(mesures, cmd);
         /*
@@ -219,6 +233,10 @@ void loop() {
         Serial.print("\n");*/
 
         //--- 4. Calcul de l'asservissement des moteurs ---
+        cmdMot[0] = 0;
+        cmdMot[1] = 0;
+        cmdMot[2] = 0;
+        cmdMot[3] = 0;
         cmdMot = asservissementP(errors, cmd[3]);
 
         //--- 5. Affectation des commandes ---
@@ -227,7 +245,8 @@ void loop() {
         motC.write(cmdMot[2]);
         motD.write(cmdMot[3]);
 
-        
+
+        /*             
         Serial.print("Mot A : ");
         Serial.print(cmdMot[0]);
         Serial.print("\tMot B : ");        
@@ -236,14 +255,159 @@ void loop() {
         Serial.print(cmdMot[2]);
         Serial.print("\tMot D : ");
         Serial.print(cmdMot[3]);
-        Serial.print("\n\n");
-        
-        
-              
-        // blink LED to indicate activity
-        blinkState = !blinkState;
-        digitalWrite(LED_PIN, blinkState);
+        Serial.print("\n\n");*/
     }
 
     x++;
+}
+
+/**
+ * Configure les ESC
+ */
+void initialize_motor()
+{
+    Serial.print("Arming the motor! \n");
+    delay(3000);
+    /*Serial.print("Setting low speed! \n");
+
+    motA.write(0);
+    motB.write(0);
+    motC.write(0);
+    motD.write(0);
+    delay(4000);
+    
+    Serial.print("Setting high speed! \n");
+    motA.write(180);
+    motB.write(180);
+    motC.write(180);
+    motD.write(180);
+    delay(4000);*/
+        
+    motA.write(10);
+    motB.write(10);
+    motC.write(10);
+    motD.write(10);
+    Serial.print("MOTOR IS READY! \n");
+    delay(2000);
+}
+
+/**
+ * Returns the throttle joystick value 
+ *
+ * @param byte[] : received data from serial port
+ * @return int
+ */
+int getJoystickState(byte data[8])
+{
+    int joyX = (data[1]-48)*100 + (data[2]-48)*10 + (data[3]-48);       // obtain the Int from the ASCII representation
+    int joyY = (data[4]-48)*100 + (data[5]-48)*10 + (data[6]-48);
+    joyX = joyX - 200;                                                  // Offset to avoid
+    joyY = joyY - 200;                                                  // transmitting negative numbers
+
+    if (joyX<-100 || joyX>100 || joyY<-100 || joyY>100) {
+   		  return 0;      // commmunication error
+    }
+
+    return map(joyY, -100, 100, 0, 180);
+}
+
+
+/**
+ * Read commands from the serial port
+ * @return int* : array of commands[yaw, pitch, roll, throttle]
+ */
+int* getCommands()
+{
+    static int cmdMot[4] = {0, 0, 0, 0};
+    if (mySerial.available()) {                           // data received from smartphone
+        delay(2);
+        rec[0] =  mySerial.read();  
+    
+        if (rec[0] == STX) { // START bit
+            int i=1;
+      
+            while (mySerial.available()) {
+                delay(1);
+                rec[i] = mySerial.read();
+        
+                if (rec[i]>127 || i>7) {
+                    break;     // Communication error
+                }
+        
+                if ((rec[i]==ETX) && (i==2 || i==7)) {
+                    break;     // Button or Joystick data
+                }
+        
+                i++;
+            }
+      
+            if (i==7) {
+                cmdMot[3] = getJoystickState(rec);     // 6 Bytes  ex: < STX "200" "180" ETX >
+                lastThrottle = cmdMot[3];
+            }
+        }
+    }
+
+    return cmdMot;
+}
+
+/**
+ * Rounds a float value 
+ * 
+ * @param float value
+ * @param unsigned int precision : number of decimals
+ */
+float myRound(float value, unsigned int precision)
+{
+	  int coeff = pow(10.0, (float)precision);
+
+	  value = (int)(value * coeff);
+
+	  return (value / coeff);
+}
+
+/**
+ * Init the MPU
+ */
+void init_imu()
+{
+    Wire.begin();
+    mpu.initialize();
+    devStatus = mpu.dmpInitialize();
+    mpu.setXGyroOffset(-9);
+    mpu.setYGyroOffset(-3);
+    mpu.setZGyroOffset(61);
+    mpu.setXAccelOffset(-449);
+    mpu.setYAccelOffset(2580);
+    mpu.setZAccelOffset(1259);
+  
+    if (devStatus == 0) {
+        mpu.setDMPEnabled(true);
+        // Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)…"));
+        attachInterrupt(0, dmpDataReady, RISING);
+        mpuIntStatus = mpu.getIntStatus();
+        dmpReady = true;
+        packetSize = mpu.dmpGetFIFOPacketSize();
+    }
+}
+
+/**
+ * Get the state from the bluetooth module : 0 = off; 1 = on
+ */
+void getState()
+{
+    if (mySerial.available()) {                           // data received from smartphone
+        delay(2);
+        rec[0] =  mySerial.read();
+
+        //Serial.print(rec[0]);
+
+        if (rec[0] == 48) {
+            etat = 0;
+        } else if (rec[0] == 49) {
+            etat = 1;
+        }
+
+        //Serial.println(etat);
+    }
 }
