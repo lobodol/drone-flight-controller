@@ -134,10 +134,10 @@ void setup() {
     sErr[1] = 0; // Pitch
     sErr[2] = 0; // Roll
 
-    motA.attach(4);
-    motB.attach(5);
-    motC.attach(6);
-    motD.attach(7);
+    motA.attach(4, 1000, 2000);
+    motB.attach(5, 1000, 2000);
+    motC.attach(6, 1000, 2000);
+    motD.attach(7, 1000, 2000);
 
     initialize_motor();
 }
