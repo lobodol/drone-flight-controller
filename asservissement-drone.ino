@@ -21,15 +21,12 @@ int    lastThrottle  = 0;         // Dernière valeur lue
 float* errors;                    // Erreurs mesurées : [Yaw, Pitch, Roll]
 float  mesures[3]    = {0,0,0};   // Mesures des angles [Yaw, Pitch, Roll]
 float  lastErr[3]    = {0, 0, 0}; // Valeur de l'erreur précédente : composante Dérivée [Yaw, Pitch, Roll]
-//float* sErr[3]       = {0, 0, 0}; // Sommes des erreurs : composante Intégrale [Yaw, Pitch, Roll]
-float* sErr;
+float* sErr;                      // Sommes des erreurs : composante Intégrale [Yaw, Pitch, Roll]
 // -------------- Variables pour la communication bluetooth ------------------
-int etat             = 0;                        // 0 : OFF - 1 : ON
+bool etat             = false;                        // 0 : OFF - 1 : ON --> utiliser le type bool
 SoftwareSerial mySerial(8,9);                    // BlueTooth module: pin#8=TX pin#9=RX
 byte rec[8]          = {0, 0, 0, 0, 0, 0, 0, 0}; // bytes received
-byte buttonStatus    = 0;                        // first Byte sent to Android device
-long previousMillis  = 0;                        // will store last time Buttons status was updated
-String displayStatus = "xxxx";                   // message to Android device
+int lostTimes = 0;
 // ---------------- Variables du MPU650 --------------------------------------
 // class default I2C address is 0x68
 // specific I2C addresses may be passed as a parameter here
@@ -46,16 +43,8 @@ uint8_t fifoBuffer[64]; // FIFO storage buffer
 
 // orientation/motion vars
 Quaternion q;           // [w, x, y, z]         quaternion container
-VectorInt16 aa;         // [x, y, z]            accel sensor measurements
-VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measurements
-VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
 VectorFloat gravity;    // [x, y, z]            gravity vector
-float euler[3];         // [psi, theta, phi]    Euler angle container
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
-
-// packet structure for InvenSense teapot demo
-uint8_t teapotPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
-int x = 0;
 
 volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
 // ---------------------------------------------------------------------------
@@ -81,7 +70,7 @@ void setup() {
     TWBR = 24; // 400kHz I2C clock (200kHz if CPU is 8MHz)    
 
     Serial.begin(57600); // Provoque beaucoup de FIFO Overflow en dessous de 38400 bauds
-    mySerial.begin(9600); // TODO vérifier si on peut augmenter le bitrate
+    mySerial.begin(9600);
 
     Serial.println(F("Initializing I2C devices..."));
     mpu.initialize();
@@ -173,15 +162,15 @@ void loop() {
     } else if (mpuIntStatus & 0x02) {
         // wait for correct available data length, should be a VERY short wait
         while (fifoCount < packetSize) {
-          fifoCount = mpu.getFIFOCount();
+            fifoCount = mpu.getFIFOCount();
         }
 
         //--- 1. Lecture des commandes moteur ---
-        getState();
-        cmd = getCommandes(etat);
-        //cmd = getCommands();
+        //getState();
+        //cmd = getCommandes(etat);
+        cmd = getCommands();
 
-        /*
+        
         Serial.print("Commandes : ");
         Serial.print(cmd[0]);
         Serial.print(";");
@@ -190,7 +179,7 @@ void loop() {
         Serial.print(cmd[2]);
         Serial.print(";");
         Serial.print(cmd[3]);
-        Serial.print("\n");*/
+        Serial.print("\n");
 
         //--- 2. Lecture des mesures du capteur ---
         // read a packet from FIFO
@@ -215,10 +204,8 @@ void loop() {
         Serial.print(";");
         Serial.print(mesures[1]);
         Serial.print(";");
-        Serial.print(mesures[2]);
-        Serial.print(";");
-        Serial.print(x);
-        Serial.print("\n");*/
+        Serial.println(mesures[2]);
+        */
         
         //--- 3. Calcul des erreurs ---
         errors = calcErrors(mesures, cmd);
@@ -227,10 +214,8 @@ void loop() {
         Serial.print(";");
         Serial.print(errors[1]);
         Serial.print(";");
-        Serial.print(errors[2]);
-        Serial.print(";");
-        Serial.print(x);
-        Serial.print("\n");*/
+        Serial.println(errors[2]);
+        */
 
         //--- 4. Calcul de l'asservissement des moteurs ---
         cmdMot[0] = 0;
@@ -257,8 +242,6 @@ void loop() {
         Serial.print(cmdMot[3]);
         Serial.print("\n\n");*/
     }
-
-    x++;
 }
 
 /**
@@ -267,26 +250,13 @@ void loop() {
 void initialize_motor()
 {
     Serial.print("Arming the motor! \n");
-    delay(3000);
-    /*Serial.print("Setting low speed! \n");
 
     motA.write(0);
     motB.write(0);
     motC.write(0);
     motD.write(0);
-    delay(4000);
-    
-    Serial.print("Setting high speed! \n");
-    motA.write(180);
-    motB.write(180);
-    motC.write(180);
-    motD.write(180);
-    delay(4000);*/
+    delay(2000);
         
-    motA.write(10);
-    motB.write(10);
-    motC.write(10);
-    motD.write(10);
     Serial.print("MOTOR IS READY! \n");
     delay(2000);
 }
@@ -318,12 +288,16 @@ int getJoystickState(byte data[8])
  */
 int* getCommands()
 {
+    Serial.println("\n--- getCommands() ---");
+    
     static int cmdMot[4] = {0, 0, 0, 0};
     if (mySerial.available()) {                           // data received from smartphone
+        Serial.println("serial available");
         delay(2);
         rec[0] =  mySerial.read();  
     
         if (rec[0] == STX) { // START bit
+            Serial.println("START bit");
             int i=1;
       
             while (mySerial.available()) {
@@ -332,10 +306,12 @@ int* getCommands()
         
                 if (rec[i]>127 || i>7) {
                     break;     // Communication error
+                    Serial.println("Communication error");
                 }
         
                 if ((rec[i]==ETX) && (i==2 || i==7)) {
                     break;     // Button or Joystick data
+                    Serial.println("Data");
                 }
         
                 i++;
@@ -345,7 +321,19 @@ int* getCommands()
                 cmdMot[3] = getJoystickState(rec);     // 6 Bytes  ex: < STX "200" "180" ETX >
                 lastThrottle = cmdMot[3];
             }
+
+            lostTimes = 0;
+        } else {
+            lostTimes++;
+            Serial.println("Signal lost");
         }
+    } else {
+        lostTimes++;
+        Serial.println("serial not available");
+    }
+
+    if (lostTimes > 3) {
+        Serial.println("Signal seems lost...");
     }
 
     return cmdMot;
@@ -391,9 +379,6 @@ void init_imu()
     }
 }
 
-/**
- * Get the state from the bluetooth module : 0 = off; 1 = on
- */
 void getState()
 {
     if (mySerial.available()) {                           // data received from smartphone
@@ -403,9 +388,9 @@ void getState()
         //Serial.print(rec[0]);
 
         if (rec[0] == 48) {
-            etat = 0;
+            etat = false;
         } else if (rec[0] == 49) {
-            etat = 1;
+            etat = true;
         }
 
         //Serial.println(etat);
