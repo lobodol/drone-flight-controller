@@ -19,14 +19,14 @@ float* calcErrors(float mesures[3], int cmd[3])
  * Lecture des commandes : Yaw, Pitch, Roll, Gaz
  * @return int[4] : tableau des commandes
  */
-int* getCommandes(int etat)
+int* getCommandes(bool etat)
 {
   static int cmd[4];
   
   cmd[0] = 0;  // Lacet (Yaw)
   cmd[1] = 0;  // Tangage (Pitch)
   cmd[2] = 0;  // Rouli (Roll)
-  cmd[3] = etat ? map(60, 0, 100, 0, 180) : 0; // Gaz
+  cmd[3] = etat ? map(20, 0, 100, 0, 180) : 0; // Gaz
 
   return cmd;
 }
@@ -121,6 +121,7 @@ int* asservissementPI(float errors[3], int cmd_h, float* sErr)
   static int commandes[4];
   float Kp[3] = {1.5, 1.5, 1}; // Coefficient P dans l'ordre : Yaw, Pitch, Roll
   float Ki[3] = {1, 1, 1}; // Coefficient I dans l'ordre : Yaw, Pitch, Roll
+
   // Initialisation des commandes moteur
   int cmd_motA = cmd_h;
   int cmd_motB = cmd_h;
@@ -159,13 +160,16 @@ int* asservissementPI(float errors[3], int cmd_h, float* sErr)
   return commandes;
 }
 
-/*
-int* asservissementPID(float errors, int cmd_h, float* sErr, float* lastErr)
+/**
+ * Asservissement PID
+ */
+int* asservissementPID(float errors[3], int cmd_h, float* sErr, float* lastErr)
 {
   static int commandes[4];
   int Kp[3] = {1, 1, 1}; // Coefficients P dans l'ordre : Yaw, Pitch, Roll
   int Ki[3] = {1, 1, 1}; // Coefficients I dans l'ordre : Yaw, Pitch, Roll
   int Kd[3] = {1, 1, 1}; // Coefficients D dans l'ordre : Yaw, Pitch, Roll
+
   // Initialisation des commandes moteur
   int cmd_motA = cmd_h;
   int cmd_motB = cmd_h;
@@ -195,10 +199,10 @@ int* asservissementPID(float errors, int cmd_h, float* sErr, float* lastErr)
   cmd_motB += (errors[2] * Kp[2] + sErr[2] * Ki[2] + lastErr[2] * Kd[2]);
   cmd_motD += (errors[2] * Kp[2] + sErr[2] * Ki[2] + lastErr[2] * Kd[2]);
 
-  // Sauvegarde de la dernière erreur
-  lastErr[0] = errors[0];
-  lastErr[1] = errors[1];
-  lastErr[2] = errors[2];
+  // Sauvegarde de la dernière erreur : composante Dérivée
+  lastErr[0] = errors[0]; // Yaw
+  lastErr[1] = errors[1]; // Pitch
+  lastErr[2] = errors[2]; // Roll
 
   // Cas limites [0, 180]
   commandes[0] = normaliser(cmd_motA);
@@ -208,4 +212,3 @@ int* asservissementPID(float errors, int cmd_h, float* sErr, float* lastErr)
 
   return commandes;
 }
-*/
