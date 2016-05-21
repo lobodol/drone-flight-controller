@@ -5,12 +5,9 @@
 #include <SimpleTimer.h>
 #include "MPU6050_6Axis_MotionApps20.h"
 #include "asservissement.h"
+#include "instructions.h"
 #include "debug.h"
 #include "SoftwareSerial.h"
-// ------------------- Déclaration des constantes ----------------------------
-#define MAX_THROTTLE 180
-#define STX          0x02
-#define ETX          0x03
 // ------------------ Déclaration des commandes moteurs ----------------------
 Servo motA;
 Servo motB;
@@ -19,16 +16,13 @@ Servo motD;
 // ------------- Variables pour l'asservissement -----------------------------
 int*   cmd;                       // Commandes reçues : [Yaw, Pitch, Roll, Throttle]
 int*   cmdMot;                    // Commandes à appliquer aux moteurs : [MotA, MotB, MotC, MotD]
-int    lastThrottle  = 0;         // Dernière valeur lue
 float* errors;                    // Erreurs mesurées : [Yaw, Pitch, Roll]
 float  mesures[3]    = {0, 0, 0}; // Mesures des angles [Yaw, Pitch, Roll]
 float  lastErr[3]    = {0, 0, 0}; // Valeur de l'erreur précédente : composante Dérivée [Yaw, Pitch, Roll]
-float* sErr;                      // Sommes des erreurs : composante Intégrale [Yaw, Pitch, Roll]
+float  sErr[3];                      // Sommes des erreurs : composante Intégrale [Yaw, Pitch, Roll]
 SimpleTimer timer;
 // -------------- Variables pour la communication bluetooth ------------------
 SoftwareSerial mySerial(8,9);             // BlueTooth module: pin#8=TX pin#9=RX                     /!\ TODO : inverser les pins pour le nouveau shield
-byte rec[8]   = {0, 0, 0, 0, 0, 0, 0, 0}; // bytes received
-int lostTimes = 0;
 // ---------------- Variables du MPU650 --------------------------------------
 // class default I2C address is 0x68
 // specific I2C addresses may be passed as a parameter here
@@ -123,9 +117,9 @@ void setup() {
     }
 
     // Init the error sum
-    sErr[0] = 0; // Yaw
-    sErr[1] = 0; // Pitch
-    sErr[2] = 0; // Roll
+    sErr[0] = 0.; // Yaw
+    sErr[1] = 0.; // Pitch
+    sErr[2] = 0.; // Roll
 
     motA.attach(10, 1000, 2000);
     motB.attach(5, 1000, 2000);
@@ -193,11 +187,11 @@ void loop() {
         mesures[1] = ypr[1] * 180/M_PI; // Pitch : tangage
         mesures[2] = ypr[2] * 180/M_PI; // Roll  : rouli
 
-        // dumpMesures(mesures);
+        dumpMesures(mesures);
         
         //--- 3. Calculate errors compared to instructions ---
         errors = calcErrors(mesures, cmd);
-        // dumpErrors(errors);
+        //dumpErrors(errors);
     }
 }
 
@@ -218,118 +212,6 @@ void initialize_motor()
     delay(2000);
 }
 
-/**
- * Returns the throttle joystick value 
- *
- * @param byte[] : received data from serial port
- * @return int
- */
-int getJoystickState(byte data[8])
-{
-    int joyX = (data[1]-48)*100 + (data[2]-48)*10 + (data[3]-48);       // obtain the Int from the ASCII representation
-    int joyY = (data[4]-48)*100 + (data[5]-48)*10 + (data[6]-48);
-    joyX = joyX - 200;                                                  // Offset to avoid
-    joyY = joyY - 200;                                                  // transmitting negative numbers
-
-    if (joyX<-100 || joyX>100 || joyY<-100 || joyY>100) {
-   		  return 0;      // commmunication error
-    }
-
-    return map(joyY, -100, 100, 0, 180);
-}
-
-int asciiToInt(byte data[8]) {
-  int result = 0;
-
-    result += (data[0]-48)*100 + (data[1]-48)*10 + (data[2]-48);
-
-    if (result > 100) {
-      result = 100;
-    } else if (result < 0) {
-      result = 0;
-    }
-  
-  return result;
-}
-
-int* getSerialCommands()
-{
-    // Yaw, Pitch, Roll, throttle
-    static int cmdMot[4] = {0, 0, 0, 0};
-    int i = 0;
-    
-    while (Serial.available()) {
-      rec[i] = Serial.read();
-      
-      if (i >= 2) {
-        break;
-      }
-
-      i++;
-    }
-
-    cmdMot[3] = asciiToInt(rec);
-
-    return cmdMot;
-}
-
-
-/**
- * Read commands from the serial port
- * @return int* : array of commands[yaw, pitch, roll, throttle]
- */
-int* getCommands()
-{
-    //Serial.println("\n--- getCommands() ---");
-    
-    static int cmdMot[4] = {0, 0, 0, 0};
-    if (mySerial.available()) {                           // data received from smartphone
-        //Serial.println("serial available");
-        delay(2);
-        rec[0] =  mySerial.read();  
-    
-        if (rec[0] == STX) { // START bit
-            //Serial.println("START bit");
-            int i=1;
-      
-            while (mySerial.available()) {
-                delay(1);
-                rec[i] = mySerial.read();
-        
-                if (rec[i]>127 || i>7) {
-                    break;     // Communication error
-                    //Serial.println("Communication error");
-                }
-        
-                if ((rec[i]==ETX) && (i==2 || i==7)) {
-                    break;     // Button or Joystick data
-                    //Serial.println("Data");
-                }
-        
-                i++;
-            }
-      
-            if (i==7) {
-                cmdMot[3] = getJoystickState(rec);     // 6 Bytes  ex: < STX "200" "180" ETX >
-                lastThrottle = cmdMot[3];
-            }
-
-            lostTimes = 0;
-        } else {
-            lostTimes++;
-            //Serial.println("Signal lost");
-        }
-    } else {
-        lostTimes++;
-        //Serial.println("serial not available");
-    }
-
-    if (lostTimes > 3) {
-        //Serial.println("Signal seems lost...");
-    }
-
-    return cmdMot;
-}
 
 /**
  * Rounds a float value 
@@ -378,8 +260,8 @@ void asservissement()
 {
     static int commandes[4] = {0,0,0,0};
     float Kp[3]       = {0.0, 0.0, 0.06};       // Coefficient P dans l'ordre : Yaw, Pitch, Roll
-    float Ki[3]       = {0.0, 0.0, 1000};    // Coefficient I dans l'ordre : Yaw, Pitch, Roll
-    float Kd[3]       = {0, 0, 20};//{0.65, 0.65, 0.65};             // Coefficients D dans l'ordre : Yaw, Pitch, Roll
+    float Ki[3]       = {0.0, 0.0, 0.01};    // Coefficient I dans l'ordre : Yaw, Pitch, Roll
+    float Kd[3]       = {0, 0, 25};//{0.65, 0.65, 0.65};             // Coefficients D dans l'ordre : Yaw, Pitch, Roll
     float deltaErr[3] = {0, 0, 0};             // Yaw, Pitch, Roll
   
     // Initialisation des commandes moteur
@@ -388,6 +270,7 @@ void asservissement()
     float cmd_motC = cmd[3];
     float cmd_motD = cmd[3];
 
+    // If throttle instruction > 0
     if (cmd[3] != 0) { 
         // Calcul la somme des erreurs : composante Intégrale
         sErr[0] += errors[0]; // Yaw
@@ -434,6 +317,8 @@ void asservissement()
     motB.write(commandes[1]);
     motC.write(commandes[2]);
     motD.write(commandes[3]);
+
+    //dumpSErrors(sErr);
 }
 
 
