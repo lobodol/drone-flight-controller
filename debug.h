@@ -46,3 +46,19 @@ void dumpErrors(float errors[3]) {
     Serial.println(errors[2]);
 }
 
+
+/**
+ * Dump calculated errors on serial port
+ *
+ * @param float errors[3] : array of errors (yaw, pitch, roll)
+ */
+void dumpSErrors(float errors[3]) {
+    Serial.print("Somme erreurs : ");
+
+    Serial.print(errors[0]);
+    Serial.print(";");
+    Serial.print(errors[1]);
+    Serial.print(";");
+    Serial.println(errors[2]);
+}
+

@@ -16,22 +16,6 @@ float* calcErrors(float mesures[3], int cmd[3])
 }
 
 /**
- * Lecture des commandes : Yaw, Pitch, Roll, Gaz
- * @return int[4] : tableau des commandes
- */
-int* getCommandes(bool etat)
-{
-  static int cmd[4];
-  
-  cmd[0] = 0;  // Lacet (Yaw)
-  cmd[1] = 0;  // Tangage (Pitch)
-  cmd[2] = 0;  // Rouli (Roll)
-  cmd[3] = etat ? map(20, 0, 100, 0, 180) : 0; // Gaz
-
-  return cmd;
-}
-
-/**
  * Rectifie une commande si elle est supérieure à 180 ou inférieure à 0
  * @param float value
  * @return int : [0, 180]
