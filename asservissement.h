@@ -165,50 +165,50 @@ int* asservissementPI(float errors[3], int cmd_h, float* sErr)
  */
 int* asservissementPID(float errors[3], int cmd_h, float* sErr, float* lastErr)
 {
-  static int commandes[4];
-  int Kp[3] = {1, 1, 1}; // Coefficients P dans l'ordre : Yaw, Pitch, Roll
-  int Ki[3] = {1, 1, 1}; // Coefficients I dans l'ordre : Yaw, Pitch, Roll
-  int Kd[3] = {1, 1, 1}; // Coefficients D dans l'ordre : Yaw, Pitch, Roll
-
-  // Initialisation des commandes moteur
-  int cmd_motA = cmd_h;
-  int cmd_motB = cmd_h;
-  int cmd_motC = cmd_h;
-  int cmd_motD = cmd_h;
-
-  // Calcul la somme des erreurs : composante Intégrale
-  sErr[0] += errors[0]; // Yaw
-  sErr[1] += errors[1]; // Pitch
-  sErr[2] += errors[2]; // Roll
-
-  // Yaw - Lacet (Z)
-  cmd_motA -= (errors[0] * Kp[0] + sErr[0] * Ki[0] + lastErr[0] * Kd[0]);
-  cmd_motD -= (errors[0] * Kp[0] + sErr[0] * Ki[0] + lastErr[0] * Kd[0]);
-  cmd_motC += (errors[0] * Kp[0] + sErr[0] * Ki[0] + lastErr[0] * Kd[0]);
-  cmd_motB += (errors[0] * Kp[0] + sErr[0] * Ki[0] + lastErr[0] * Kd[0]);
-
-  // Pitch - Tangage (Y)
-  cmd_motA -= (errors[1] * Kp[1] + sErr[1] * Ki[1] + lastErr[1] * Kd[1]);
-  cmd_motB -= (errors[1] * Kp[1] + sErr[1] * Ki[1] + lastErr[1] * Kd[1]);
-  cmd_motC += (errors[1] * Kp[1] + sErr[1] * Ki[1] + lastErr[1] * Kd[1]);
-  cmd_motD += (errors[1] * Kp[1] + sErr[1] * Ki[1] + lastErr[1] * Kd[1]);
-
-  // Roll - Roulis (X)
-  cmd_motA -= (errors[2] * Kp[2] + sErr[2] * Ki[2] + lastErr[2] * Kd[2]);
-  cmd_motC -= (errors[2] * Kp[2] + sErr[2] * Ki[2] + lastErr[2] * Kd[2]);
-  cmd_motB += (errors[2] * Kp[2] + sErr[2] * Ki[2] + lastErr[2] * Kd[2]);
-  cmd_motD += (errors[2] * Kp[2] + sErr[2] * Ki[2] + lastErr[2] * Kd[2]);
-
-  // Sauvegarde de la dernière erreur : composante Dérivée
-  lastErr[0] = errors[0]; // Yaw
-  lastErr[1] = errors[1]; // Pitch
-  lastErr[2] = errors[2]; // Roll
-
-  // Cas limites [0, 180]
-  commandes[0] = normaliser(cmd_motA);
-  commandes[1] = normaliser(cmd_motB);
-  commandes[2] = normaliser(cmd_motC);
-  commandes[3] = normaliser(cmd_motD);
-
-  return commandes;
+    static int commandes[4];
+    int Kp[3] = {1, 1, 1}; // Coefficients P dans l'ordre : Yaw, Pitch, Roll
+    int Ki[3] = {1, 1, 1}; // Coefficients I dans l'ordre : Yaw, Pitch, Roll
+    int Kd[3] = {1, 1, 1}; // Coefficients D dans l'ordre : Yaw, Pitch, Roll
+  
+    // Initialisation des commandes moteur
+    int cmd_motA = cmd_h;
+    int cmd_motB = cmd_h;
+    int cmd_motC = cmd_h;
+    int cmd_motD = cmd_h;
+  
+    // Calcul la somme des erreurs : composante Intégrale
+    sErr[0] += errors[0]; // Yaw
+    sErr[1] += errors[1]; // Pitch
+    sErr[2] += errors[2]; // Roll
+  
+    // Yaw - Lacet (Z)
+    cmd_motA -= (errors[0] * Kp[0] + sErr[0] * Ki[0] + lastErr[0] * Kd[0]);
+    cmd_motD -= (errors[0] * Kp[0] + sErr[0] * Ki[0] + lastErr[0] * Kd[0]);
+    cmd_motC += (errors[0] * Kp[0] + sErr[0] * Ki[0] + lastErr[0] * Kd[0]);
+    cmd_motB += (errors[0] * Kp[0] + sErr[0] * Ki[0] + lastErr[0] * Kd[0]);
+  
+    // Pitch - Tangage (Y)
+    cmd_motA -= (errors[1] * Kp[1] + sErr[1] * Ki[1] + lastErr[1] * Kd[1]);
+    cmd_motB -= (errors[1] * Kp[1] + sErr[1] * Ki[1] + lastErr[1] * Kd[1]);
+    cmd_motC += (errors[1] * Kp[1] + sErr[1] * Ki[1] + lastErr[1] * Kd[1]);
+    cmd_motD += (errors[1] * Kp[1] + sErr[1] * Ki[1] + lastErr[1] * Kd[1]);
+  
+    // Roll - Roulis (X)
+    cmd_motA -= (errors[2] * Kp[2] + sErr[2] * Ki[2] + lastErr[2] * Kd[2]);
+    cmd_motC -= (errors[2] * Kp[2] + sErr[2] * Ki[2] + lastErr[2] * Kd[2]);
+    cmd_motB += (errors[2] * Kp[2] + sErr[2] * Ki[2] + lastErr[2] * Kd[2]);
+    cmd_motD += (errors[2] * Kp[2] + sErr[2] * Ki[2] + lastErr[2] * Kd[2]);
+  
+    // Sauvegarde de la dernière erreur : composante Dérivée
+    lastErr[0] = errors[0]; // Yaw
+    lastErr[1] = errors[1]; // Pitch
+    lastErr[2] = errors[2]; // Roll
+  
+    // Cas limites [0, 180]
+    commandes[0] = normaliser(cmd_motA);
+    commandes[1] = normaliser(cmd_motB);
+    commandes[2] = normaliser(cmd_motC);
+    commandes[3] = normaliser(cmd_motD);
+  
+    return commandes;
 }
