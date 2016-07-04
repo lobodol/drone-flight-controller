@@ -4,6 +4,7 @@ This project uses I2Cdev library that can be found here : https://github.com/jro
 
 Currently in beta version.
 
+```
 Pin connection :
 +--------------------+
 |      MPU-6050      |
@@ -17,3 +18,4 @@ Pin connection :
 |                    |
 |    Arduino Uno     |
 +--------------------+
+```
