@@ -2,6 +2,8 @@ The goal of this project is to realize automation routine of an X quadricopter b
 
 This project uses I2Cdev library that can be found here : https://github.com/jrowberg/i2cdevlib
 
+And VirtualWire library for wireless communication.
+
 Currently in beta version.
 
 ```
