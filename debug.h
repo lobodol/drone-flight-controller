@@ -21,7 +21,7 @@ void dumpCommands(int cmd[4]) {
  *
  * @param float mesures[3] : array of mesures
  */
-void dumpMesures(float mesures[3]) {
+void dumpMeasures(float *mesures) {
     Serial.print("Mesures : ");
 
     Serial.print(mesures[0]);
