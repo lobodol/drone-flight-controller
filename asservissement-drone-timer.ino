@@ -8,41 +8,39 @@
 #include "instructions.h"
 #include "debug.h"
 #include "SoftwareSerial.h"
-// ------------------ Déclaration des commandes moteurs ----------------------
+#include "utils.h"
+// ------------------ Declaration of each motor's servo ----------------------
 Servo motA;
 Servo motB;
 Servo motC;
 Servo motD;
-// ------------- Variables pour l'asservissement -----------------------------
-int*   cmd;                       // Commandes reçues : [Yaw, Pitch, Roll, Throttle]
-int*   cmdMot;                    // Commandes à appliquer aux moteurs : [MotA, MotB, MotC, MotD]
-float* errors;                    // Erreurs mesurées : [Yaw, Pitch, Roll]
-float  mesures[3]    = {0, 0, 0}; // Mesures des angles [Yaw, Pitch, Roll]
-float  lastErr[3]    = {0, 0, 0}; // Valeur de l'erreur précédente : composante Dérivée [Yaw, Pitch, Roll]
-float  sErr[3];                      // Sommes des erreurs : composante Intégrale [Yaw, Pitch, Roll]
+// ------------- Global variables used for PID automation -----------------------------
+float* cmd;                     // Received instructions : [Yaw, Pitch, Roll, Throttle]
+float* errors;                  // Measured errors (used for proportional component) : [Yaw, Pitch, Roll]
+float  sErr[3]     = {0, 0, 0}; // Error sums (used for integral component) : [Yaw, Pitch, Roll]
+float  lastErr[3]  = {0, 0, 0}; // Last errors (used for derivative component) : [Yaw, Pitch, Roll]
+float  measures[3] = {0, 0, 0}; // Angle measures : [Yaw, Pitch, Roll]
 SimpleTimer timer;
-// -------------- Variables pour la communication bluetooth ------------------
-SoftwareSerial mySerial(8,9);             // BlueTooth module: pin#8=TX pin#9=RX                     /!\ TODO : inverser les pins pour le nouveau shield
-// ---------------- Variables du MPU650 --------------------------------------
+// --------------------- MPU650 variables ------------------------------------
 // class default I2C address is 0x68
 // specific I2C addresses may be passed as a parameter here
 // AD0 low = 0x68 (default for SparkFun breakout and InvenSense evaluation board)
 // AD0 high = 0x69
 MPU6050 mpu;
 // MPU control/status vars
-bool dmpReady = false;  // set true if DMP init was successful
-uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
-uint8_t devStatus;      // return status after each device operation (0 = success, !0 = error)
-uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
-uint16_t fifoCount;     // count of all bytes currently in FIFO
-uint8_t fifoBuffer[64]; // FIFO storage buffer
+bool     dmpReady = false; // set true if DMP init was successful
+uint8_t  mpuIntStatus;     // holds actual interrupt status byte from MPU
+uint8_t  devStatus;        // return status after each device operation (0 = success, !0 = error)
+uint16_t packetSize;       // expected DMP packet size (default is 42 bytes)
+uint16_t fifoCount;        // count of all bytes currently in FIFO
+uint8_t  fifoBuffer[64];   // FIFO storage buffer
 
-// orientation/motion vars
-Quaternion q;           // [w, x, y, z]         quaternion container
-VectorFloat gravity;    // [x, y, z]            gravity vector
-float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
+// Orientation/motion vars
+Quaternion  q;       // [w, x, y, z]         quaternion container
+VectorFloat gravity; // [x, y, z]            gravity vector
+float ypr[3];        // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
-volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
+volatile bool mpuInterrupt = false;     // Indicates whether MPU interrupt pin has gone high
 // ---------------------------------------------------------------------------
 
 
@@ -62,26 +60,27 @@ void dmpDataReady() {
 void setup() {
     init_imu();
 
-    timer.setInterval(1, asservissement);
+    // Call automation routine every ms (sampling frequency = 1kHz)
+    timer.setInterval(1, automation);
         
     Wire.begin();
     TWBR = 24; // 400kHz I2C clock (200kHz if CPU is 8MHz)    
 
-    Serial.begin(57600); // Provoque beaucoup de FIFO Overflow en dessous de 38400 bauds
+    Serial.begin(57600); // Causes a lot of FIFO Overflows under 38400 bauds
     mySerial.begin(9600);
 
     Serial.println(F("Initializing I2C devices..."));
     mpu.initialize();
 
-    // verify connection
+    // Verify connection
     Serial.println(F("Testing device connections..."));
     Serial.println(mpu.testConnection() ? F("MPU6050 connection successful") : F("MPU6050 connection failed"));
 
-    // load and configure the DMP
+    // Load and configure the DMP
     Serial.println(F("Initializing DMP..."));
     devStatus = mpu.dmpInitialize();
 
-    // Calibration du MPU
+    // MPU calibration
     mpu.setXAccelOffset(377);
     mpu.setYAccelOffset(-4033);
     mpu.setZAccelOffset(1591);
@@ -91,20 +90,20 @@ void setup() {
     
     // Returns 0 if it worked
     if (devStatus == 0) {
-        // turn on the DMP, now that it's ready
+        // Turn on the DMP, now that it's ready
         Serial.println(F("Enabling DMP..."));
         mpu.setDMPEnabled(true);
 
-        // enable Arduino interrupt detection
+        // Enable Arduino interrupt detection
         Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0 : #pin2)..."));
         attachInterrupt(0, dmpDataReady, RISING);
         mpuIntStatus = mpu.getIntStatus();
 
-        // set our DMP Ready flag so the main loop() function knows it's okay to use it
+        // Set our DMP Ready flag so the main loop() function knows it's okay to use it
         Serial.println(F("DMP ready! Waiting for first interrupt..."));
         dmpReady = true;
 
-        // get expected DMP packet size for later comparison
+        // Get expected DMP packet size for later comparison
         packetSize = mpu.dmpGetFIFOPacketSize();
     } else {
         // ERROR!
@@ -116,11 +115,7 @@ void setup() {
         Serial.println(F(")"));
     }
 
-    // Init the error sum
-    sErr[0] = 0.; // Yaw
-    sErr[1] = 0.; // Pitch
-    sErr[2] = 0.; // Roll
-
+    // Define each motor's pin
     motA.attach(10, 1000, 2000);
     motB.attach(5, 1000, 2000);
     motC.attach(6, 1000, 2000);
@@ -143,13 +138,14 @@ void loop() {
 
     // Wait for MPU interrupt or extra packet(s) available
     while (!mpuInterrupt && fifoCount < packetSize) {
+        // Do nothing...
     }
 
-    // reset interrupt flag and get INT_STATUS byte
+    // Reset interrupt flag and get INT_STATUS byte
     mpuInterrupt = false;
     mpuIntStatus = mpu.getIntStatus();
 
-    // get current FIFO count
+    // Get current FIFO count
     fifoCount = mpu.getFIFOCount();
 
     // Check for overflow (this should never happen unless our code is too inefficient)
@@ -160,16 +156,15 @@ void loop() {
 
     // Otherwise, check for DMP data ready interrupt (this should happen frequently)
     } else if (mpuIntStatus & 0x02) {
-        // wait for correct available data length, should be a VERY short wait
+        // Wait for correct available data length, should be a VERY short wait
         while (fifoCount < packetSize) {
             fifoCount = mpu.getFIFOCount();
         }
 
-        //--- 1. Read instructions from serial port ---
-        cmd = getSerialCommands();
-        // dumpCommands(cmd);
+        //--- 1. Read instructions from virtual wire ---
+        cmd = getInstructions();
 
-        //--- 2. Read mesures from sensor ---
+        //--- 2. Read measures from sensor ---
         // Read a packet from FIFO
         mpu.getFIFOBytes(fifoBuffer, packetSize);
         
@@ -177,26 +172,25 @@ void loop() {
         // (this lets us immediately read more without waiting for an interrupt)
         fifoCount -= packetSize;
         
-        // Display Euler angles in degrees
+        // Convert Euler angles in degrees
         mpu.dmpGetQuaternion(&q, fifoBuffer);
         mpu.dmpGetGravity(&gravity, &q);
         mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
 
-        // TODO : set the resolution number
-        mesures[0] = 0*ypr[0] * 180/M_PI; // Yaw   : lacet
-        mesures[1] = ypr[1] * 180/M_PI; // Pitch : tangage
-        mesures[2] = ypr[2] * 180/M_PI; // Roll  : rouli
+        measures[YAW]   = ypr[YAW]   * (180 / M_PI) * 0;
+        measures[PITCH] = ypr[PITCH] * (180 / M_PI);
+        measures[ROLL]  = ypr[ROLL]  * (180 / M_PI);
 
-        dumpMesures(mesures);
+        dumpMeasures(measures);
         
         //--- 3. Calculate errors compared to instructions ---
-        errors = calcErrors(mesures, cmd);
+        errors = calcErrors(measures, cmd);
         //dumpErrors(errors);
     }
 }
 
 /**
- * Configure les ESC
+ * ESCs configuration
  */
 void initialize_motor()
 {
@@ -210,22 +204,6 @@ void initialize_motor()
         
     Serial.print("MOTORS ARE READY! \n");
     delay(2000);
-}
-
-
-/**
- * Rounds a float value 
- * 
- * @param float value
- * @param unsigned int precision : number of decimals
- */
-float myRound(float value, unsigned int precision)
-{
-	  int coeff = pow(10.0, (float)precision);
-
-	  value = (int)(value * coeff);
-
-	  return (value / coeff);
 }
 
 /**
@@ -254,71 +232,74 @@ void init_imu()
 }
 
 /**
- * Fonction d'asservissement principale
+ * Calculate motor speed for each motor of an X quadcopter depending on received instructions and measures from sensor
+ * by applying PID control.
+ *
+ * (A) (B)     x
+ *   \ /     z ↑
+ *    X       \|
+ *   / \       +----→ y
+ * (C) (D)
+ * 
+ * Motors A & D run clockwise.
+ * Motors B & C run counter-clockwise.
+ *
+ * Actually, Pulse Position Modulation (PPM) is used to control motors speeds.
+ * As a result, value range is about 0 to 180°.
  */
-void asservissement()
+void automation()
 {
-    static int commandes[4] = {0,0,0,0};
-    float Kp[3]       = {0.0, 0.0, 0.06};       // Coefficient P dans l'ordre : Yaw, Pitch, Roll
-    float Ki[3]       = {0.0, 0.0, 0.01};    // Coefficient I dans l'ordre : Yaw, Pitch, Roll
-    float Kd[3]       = {0, 0, 25};//{0.65, 0.65, 0.65};             // Coefficients D dans l'ordre : Yaw, Pitch, Roll
-    float deltaErr[3] = {0, 0, 0};             // Yaw, Pitch, Roll
-  
-    // Initialisation des commandes moteur
-    float cmd_motA = cmd[3];
-    float cmd_motB = cmd[3];
-    float cmd_motC = cmd[3];
-    float cmd_motD = cmd[3];
+    float  Kp[3]       = {0.0, 0.0, 0.06}; // P coefficients in that order : Yaw, Pitch, Roll
+    float  Ki[3]       = {0.0, 0.0, 0.01}; // I coefficients in that order : Yaw, Pitch, Roll
+    float  Kd[3]       = {0, 0, 25};       // D coefficients in that order : Yaw, Pitch, Roll
+    float  deltaErr[3] = {0, 0, 0};        // Error deltas in that order :  Yaw, Pitch, Roll
+    // Initialize motor commands with throttle
+    float cmd_motA = cmd[THROTTLE];
+    float cmd_motB = cmd[THROTTLE];
+    float cmd_motC = cmd[THROTTLE];
+    float cmd_motD = cmd[THROTTLE];
 
-    // If throttle instruction > 0
+    // Do not calculate anything if throttle is 0
     if (cmd[3] != 0) { 
-        // Calcul la somme des erreurs : composante Intégrale
-        sErr[0] += errors[0]; // Yaw
-        sErr[1] += errors[1]; // Pitch
-        sErr[2] += errors[2]; // Roll
+        // Calculate sum of errors : Integral coefficients
+        sErr[YAW]   += errors[YAW];
+        sErr[PITCH] += errors[PITCH];
+        sErr[ROLL]  += errors[ROLL];
         
-        // Calcul du delta erreur : composante Dérivée
-        deltaErr[0] = errors[0] - lastErr[0]; // Yaw
-        deltaErr[1] = errors[1] - lastErr[1]; // Pitch
-        deltaErr[2] = errors[2] - lastErr[2]; // Roll
+        // Calculate error delta : Derivative coefficients
+        deltaErr[YAW]   = errors[YAW]   - lastErr[YAW];
+        deltaErr[PITCH] = errors[PITCH] - lastErr[PITCH];
+        deltaErr[ROLL]  = errors[ROLL]  - lastErr[ROLL];
         
-        // Sauvegarde de la dernière erreur : composante Dérivée
-        lastErr[0] = errors[0]; // Yaw
-        lastErr[1] = errors[1]; // Pitch
-        lastErr[2] = errors[2]; // Roll
+        // Save current error as lastErr for next time
+        lastErr[YAW]   = errors[YAW];
+        lastErr[PITCH] = errors[PITCH];
+        lastErr[ROLL]  = errors[ROLL];
         
         // Yaw - Lacet (Z)
-        cmd_motA -= (errors[0] * Kp[0] + sErr[0] * Ki[0] + deltaErr[0] * Kd[0]);
-        cmd_motD -= (errors[0] * Kp[0] + sErr[0] * Ki[0] + deltaErr[0] * Kd[0]);
-        cmd_motC += (errors[0] * Kp[0] + sErr[0] * Ki[0] + deltaErr[0] * Kd[0]);
-        cmd_motB += (errors[0] * Kp[0] + sErr[0] * Ki[0] + deltaErr[0] * Kd[0]);
+        cmd_motA -= (errors[YAW] * Kp[YAW] + sErr[YAW] * Ki[YAW] + deltaErr[YAW] * Kd[YAW]);
+        cmd_motD -= (errors[YAW] * Kp[YAW] + sErr[YAW] * Ki[YAW] + deltaErr[YAW] * Kd[YAW]);
+        cmd_motC += (errors[YAW] * Kp[YAW] + sErr[YAW] * Ki[YAW] + deltaErr[YAW] * Kd[YAW]);
+        cmd_motB += (errors[YAW] * Kp[YAW] + sErr[YAW] * Ki[YAW] + deltaErr[YAW] * Kd[YAW]);
         
         // Pitch - Tangage (Y)
-        cmd_motA -= (errors[1] * Kp[1] + sErr[1] * Ki[1] + deltaErr[1] * Kd[1]);
-        cmd_motB -= (errors[1] * Kp[1] + sErr[1] * Ki[1] + deltaErr[1] * Kd[1]);
-        cmd_motC += (errors[1] * Kp[1] + sErr[1] * Ki[1] + deltaErr[1] * Kd[1]);
-        cmd_motD += (errors[1] * Kp[1] + sErr[1] * Ki[1] + deltaErr[1] * Kd[1]);
+        cmd_motA -= (errors[PITCH] * Kp[PITCH] + sErr[PITCH] * Ki[PITCH] + deltaErr[PITCH] * Kd[PITCH]);
+        cmd_motB -= (errors[PITCH] * Kp[PITCH] + sErr[PITCH] * Ki[PITCH] + deltaErr[PITCH] * Kd[PITCH]);
+        cmd_motC += (errors[PITCH] * Kp[PITCH] + sErr[PITCH] * Ki[PITCH] + deltaErr[PITCH] * Kd[PITCH]);
+        cmd_motD += (errors[PITCH] * Kp[PITCH] + sErr[PITCH] * Ki[PITCH] + deltaErr[PITCH] * Kd[PITCH]);
         
         // Roll - Roulis (X)
-        cmd_motA -= (errors[2] * Kp[2] + sErr[2] * Ki[2] + deltaErr[2] * Kd[2]);
-        cmd_motC -= (errors[2] * Kp[2] + sErr[2] * Ki[2] + deltaErr[2] * Kd[2]);
-        cmd_motB += (errors[2] * Kp[2] + sErr[2] * Ki[2] + deltaErr[2] * Kd[2]);
-        cmd_motD += (errors[2] * Kp[2] + sErr[2] * Ki[2] + deltaErr[2] * Kd[2]);
+        cmd_motA -= (errors[ROLL] * Kp[ROLL] + sErr[ROLL] * Ki[ROLL] + deltaErr[ROLL] * Kd[ROLL]);
+        cmd_motC -= (errors[ROLL] * Kp[ROLL] + sErr[ROLL] * Ki[ROLL] + deltaErr[ROLL] * Kd[ROLL]);
+        cmd_motB += (errors[ROLL] * Kp[ROLL] + sErr[ROLL] * Ki[ROLL] + deltaErr[ROLL] * Kd[ROLL]);
+        cmd_motD += (errors[ROLL] * Kp[ROLL] + sErr[ROLL] * Ki[ROLL] + deltaErr[ROLL] * Kd[ROLL]);
     }
 
-    // Cas limites [0, 180]
-    commandes[0] = normaliser(cmd_motA);
-    commandes[1] = normaliser(cmd_motB);
-    commandes[2] = normaliser(cmd_motC);
-    commandes[3] = normaliser(cmd_motD);
-      
-    //--- 5. Affectation des commandes ---
-    motA.write(commandes[0]);
-    motB.write(commandes[1]);
-    motC.write(commandes[2]);
-    motD.write(commandes[3]);
-
-    //dumpSErrors(sErr);
+    // Write speed for each motor
+    motA.write(normalize(cmd_motA));
+    motB.write(normalize(cmd_motB));
+    motC.write(normalize(cmd_motC));
+    motD.write(normalize(cmd_motD));
 }
 
 

@@ -1,141 +1,211 @@
 /**
- * Contains all usual functions to read instructions from differents supports.
- * USB wire
- * Bluetooth module
- * ...
+ * Contains all usual functions to read instructions from virtual wire.
  */
 
 // ---------------------------------------------------------------------------
-#include "SoftwareSerial.h"
-// ---------------------------- Local constants ------------------------------
-#define STX          0x02
-#define ETX          0x03
+#include <VirtualWire.h>
+// ----------------------------Local constants ------------------------------
+#define CHECKSUM_INDEX 8
+#define PRECISION      1
+#define STX_INDEX      0
+#define ETX_INDEX      9
+#define STX            0x02
+#define ETX            0x03
+#define MESSAGE_LENGTH 10
+#define YAW            0
+#define PITCH          1
+#define ROLL           2
+#define THROTTLE       3
 // --------------------------- Local variables -------------------------------
-byte rec[8]      = {0, 0, 0, 0, 0, 0, 0, 0}; // Bytes received
-int lostTimes    = 0;
-int lastThrottle = 0;                        // Last read value
+byte   rec[MESSAGE_LENGTH];
+int    lostTimes = 0;
+float* lastInstructions;
 // ---------------------------------------------------------------------------
 
-
 /**
- * Converts ascii numbers to integer
- * 
- * @param byte data[8] : array of read instructions
- */
-int asciiToInt(byte data[8]) {
-  int result = 0;
-
-    result += (data[0]-48)*100 + (data[1]-48)*10 + (data[2]-48);
-
-    if (result > 100) {
-      result = 100;
-    } else if (result < 0) {
-      result = 0;
-    }
-  
-  return result;
-}
-
-/**
- * Reads instructions from USB port.
- * Throttle instruction goes from 0 to 100.
- * 
- * @return int* : an array of instrcutions : yaw, pitch, roll, throttle
- */
-int* getSerialCommands()
-{
-    // Yaw, Pitch, Roll, throttle
-    static int cmdMot[4] = {0, 0, 0, 0};
-    int i = 0;
-    
-    while (Serial.available()) {
-      rec[i] = Serial.read();
-      
-      if (i >= 2) {
-        break;
-      }
-
-      i++;
-    }
-
-    cmdMot[3] = asciiToInt(rec);
-
-    return cmdMot;
-}
-
-/**
- * Returns the throttle joystick value 
+ * Return TRUE if message is well formed, FALSE otherwise.
+ * Save receveided datas in "rec" variable & increment "lostTime" each time message isn't valid.
+ * A message is 10 bytes length and must be composed as following :
+ * << STX (1B) | YAW (2B) | PITCH (2B) | ROLL (2B) | THROTTLE (1B) | CHECKSUM (1B) | ETX (1B) >>
  *
- * @param byte[] : received data from serial port
- * @return int
+ * @return bool
  */
-int getJoystickState(byte data[8])
+bool isMessageValid()
 {
-    int joyX = (data[1]-48)*100 + (data[2]-48)*10 + (data[3]-48);       // obtain the Int from the ASCII representation
-    int joyY = (data[4]-48)*100 + (data[5]-48)*10 + (data[6]-48);
-    joyX = joyX - 200;                                                  // Offset to avoid
-    joyY = joyY - 200;                                                  // transmitting negative numbers
+    bool    isValid = false;
+    uint8_t buflen  = MESSAGE_LENGTH;
 
-    if (joyX<-100 || joyX>100 || joyY<-100 || joyY>100) {
-         return 0;      // commmunication error
-    }
+    // Wait for incoming message
+    if (vw_wait_rx_max(133) && vw_get_message(rec, &buflen)) {
+        // Start byte
+        if (rec[STX_INDEX] == STX) {
+            // Init checksum
+            byte checksum = rec[STX_INDEX];
 
-    return map(joyY, -100, 100, 0, 180);
-}
-
-
-/**
- * Read commands from the bluetooth module
- * 
- * @return int* : array of commands[yaw, pitch, roll, throttle]
- */
-int* getCommands(SoftwareSerial mySerial)
-{    
-    static int cmdMot[4] = {0, 0, 0, 0};
-    if (mySerial.available()) {                           // data received from smartphone
-        //Serial.println("serial available");
-        delay(2);
-        rec[0] =  mySerial.read();  
-    
-        if (rec[0] == STX) { // START bit
-            //Serial.println("START bit");
-            int i=1;
-      
-            while (mySerial.available()) {
-                delay(1);
-                rec[i] = mySerial.read();
-        
-                if (rec[i]>127 || i>7) {
-                    break;     // Communication error
-                    //Serial.println("Communication error");
+            for (byte i = STX_INDEX+1; i < buflen; i++) {
+                // Calculate checksum
+                if (i < CHECKSUM_INDEX) {
+                    // Bitwise XOR
+                    checksum ^= rec[i];
+                } else if (i == CHECKSUM_INDEX && checksum != rec[CHECKSUM_INDEX]) {
+                    // Checksum error
+                    Serial.println("Checksum error");
+                    break;
+                } else if (i == ETX_INDEX && rec[i] == ETX) {
+                    // Everything went good
+                    isValid = true;
+                    break;
+                } else if (i >= ETX_INDEX) {
+                    // Message is too long, something went wrong
+                    Serial.println("Message too long");
+                    break;
                 }
-        
-                if ((rec[i]==ETX) && (i==2 || i==7)) {
-                    break;     // Button or Joystick data
-                    //Serial.println("Data");
-                }
-        
-                i++;
             }
-      
-            if (i==7) {
-                cmdMot[3] = getJoystickState(rec);     // 6 Bytes  ex: < STX "200" "180" ETX >
-                lastThrottle = cmdMot[3];
-            }
-
-            lostTimes = 0;
         } else {
-            lostTimes++;
-            //Serial.println("Signal lost");
+            // Never encountered the STX symbol
+            Serial.println("--- NO STX ---");
         }
     } else {
+        Serial.println("NO DATA RECEIVED");
+    }
+
+    if (!isValid) {
         lostTimes++;
-        //Serial.println("serial not available");
+        Serial.println("Message is NOT valid");
+    } else {
+        lostTimes = 0;
     }
 
-    if (lostTimes > 3) {
-        //Serial.println("Signal seems lost...");
+    return isValid;
+}
+
+/**
+ * Extract yaw value from received datas
+ *
+ * @return float : yaw value in [0, 360]°
+ */
+float getYaw()
+{
+    //                 MSB            LSB
+    uint16_t yaw = (rec[1] << 8) | rec[2];
+
+    // Limit cases
+    if (yaw > 360) {
+        yaw = 360;
+    } else if (yaw < 0) {
+        yaw = 0;
     }
 
-    return cmdMot;
+    return float(yaw);
+}
+
+/**
+ * Extract pitch value from received datas.
+ *
+ * @return float : pitch value in [-45.0, +45.0]°
+ */
+float getPitch()
+{
+    //                 MSB            LSB
+    uint16_t pitch = (rec[3] << 8) | rec[4];
+
+    // Limit cases
+    if (pitch > 900) {
+        pitch = 900;
+    } else if (pitch < 0) {
+        pitch = 0;
+    }
+
+    float pitch_float = pitch / pow(10, PRECISION);
+    pitch_float -= 45;
+
+    return pitch_float;
+}
+
+/**
+ * Extract roll value from received datas.
+ *
+ * @return float : pitch value in [-45.0, +45.0]°
+ */
+float getRoll()
+{
+    //                MSB            LSB
+    uint16_t roll = (rec[5] << 8) | rec[6];
+
+    // Limit cases
+    if (roll > 900) {
+        roll = 900;
+    } else if (roll < 0) {
+        roll = 0;
+    }
+
+    float roll_float = roll / pow(10, PRECISION);
+    roll_float -= 45;
+
+    return roll_float;
+}
+
+/**
+ * Extract throttle value from received datas.
+ *
+ * @return float
+ */
+float getThrottle()
+{
+    float throttle = float(rec[7]);
+
+    if (throttle < 0) {
+        throttle = 0;
+    } else if (throttle > 100) {
+        throttle = 100;
+    }
+
+    return throttle;
+}
+
+/**
+ * Read instructions from virtual wire
+ *
+ * @return float[4] : [Yaw, Pitch, Roll, Throttle]
+ */
+float* getInstructions()
+{
+    static float commands[4] = {0,0,0,0};
+
+    if (isMessageValid()) {
+        commands[YAW]      = getYaw();
+        commands[PITCH]    = getPitch();
+        commands[ROLL]     = getRoll();
+        commands[THROTTLE] = getThrottle();
+
+        // Save insructions for next time
+        lastInstructions[YAW]      = commands[YAW];
+        lastInstructions[PITCH]    = commands[PITCH];
+        lastInstructions[ROLL]     = commands[ROLL];
+        lastInstructions[THROTTLE] = commands[THROTTLE];
+    } else if (lostTimes > 255) {
+        // Communication lost for too long, start landing process
+        //Serial.println("Landing...");
+    } else if (lostTimes > 3) {
+        // Communication seems lost, stabilize quadcopter using default values and wait
+        //Serial.println("Stabilize...");
+        commands[YAW]      = 0;
+        commands[PITCH]    = 0;
+        commands[ROLL]     = 0;
+
+        if (lastInstructions[THROTTLE] > 50) {
+            commands[THROTTLE] = 50;
+        } else {
+            commands[THROTTLE] = lastInstructions[THROTTLE];
+        }
+    } else {
+        // Communication error, but not for too long yet : use last instructions
+        commands[YAW]      = lastInstructions[YAW];
+        commands[PITCH]    = lastInstructions[PITCH];
+        commands[ROLL]     = lastInstructions[ROLL];
+        commands[THROTTLE] = lastInstructions[THROTTLE];
+        //Serial.println("Use last instructions");
+    }
+
+    return commands;
 }
