@@ -1,4 +1,5 @@
 # Quadcopter PID implementation
+## 1. Introduction
 
 The goal of this project is to realize automation routine of an X quadricopter based on an Arduino Uno and the MPU-6050 sensor.
 
@@ -9,7 +10,15 @@ This project uses I2Cdev library that can be found here : https://github.com/jro
 
 Currently in beta version.
 
-# Pin connection:
+## 2. Requirements
+Arduino libraries:
+* Wire
+* I2C
+* Servo
+* SimpleTimer
+* MPU6050_6Axis_MotionApps20
+
+## 3. Pin connection:
 ```
 +-------------------------+
 |      MPU-6050           |
