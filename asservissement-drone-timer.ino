@@ -66,7 +66,6 @@ void setup() {
     TWBR = 24; // 400kHz I2C clock (200kHz if CPU is 8MHz)    
 
     Serial.begin(57600); // Causes a lot of FIFO Overflows under 38400 bauds
-    mySerial.begin(9600);
 
     Serial.println(F("Initializing I2C devices..."));
     mpu.initialize();
