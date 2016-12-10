@@ -260,7 +260,7 @@ void automation()
     float cmd_motD = cmd[THROTTLE];
 
     // Do not calculate anything if throttle is 0
-    if (cmd[3] != 0) { 
+    if (cmd[THROTTLE] != 0) { 
         // Calculate sum of errors : Integral coefficients
         sErr[YAW]   += errors[YAW];
         sErr[PITCH] += errors[PITCH];
