@@ -1,5 +1,3 @@
-#include "instructions.h"
-
 /**
  * Calcul les erreurs Yaw, Pitch, Roll par rapport aux commandes
  *
