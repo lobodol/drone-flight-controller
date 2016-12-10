@@ -1,9 +1,9 @@
 /**
- * Calcul les erreurs Yaw, Pitch, Roll par rapport aux commandes
+ * Calculate errors of Yaw, Pitch & Roll: this is simply the difference between the mesure and the command.
  *
- * @param float* mesures : tableau des mesures Yaw, Pitch, Roll
- * @param float* cmd     : tableau des commandes Yaw, Pitch Roll
- * @return float*        : tableau des erreurs Yaw, Pitch, Roll
+ * @param float[3] mesures : array of the measures in that order : Yaw, Pitch, Roll.
+ * @param float[3] cmd     : array of commands in that order : Yaw, Pitch Roll.
+ * @return float[3]        : array of calculated errors in that order : Yaw, Pitch, Roll.
  */
 float* calcErrors(float mesures[3], float cmd[3])
 {
@@ -17,9 +17,11 @@ float* calcErrors(float mesures[3], float cmd[3])
 }
 
 /**
- * Rectifie une commande si elle est supérieure à 180 ou inférieure à 0
+ * Cast float into integer and rectify command : if is greater than 180 or lower than 0.
+ * The returned value is a integer between 0 and 180 (both included).
+ * This is directly linked to the PPM command that must be an angle between 0 and 180 degrees.
  *
- * @param float value
+ * @param float value : the value to format.
  * @return int : [0, 180]
  */
 int normalize(float value)
