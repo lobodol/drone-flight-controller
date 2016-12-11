@@ -15,16 +15,31 @@
  *
  * TODO: Use a simple potentiometer to give dynamic commands.
  *
- * @return float[4] : [Yaw, Pitch, Roll, Throttle]
+ * @return float[4] : [Yaw, Pitch, Roll, Throttle] (values in degrees).
  */
 float* getInstructions()
 {
     static float commands[4];
 
-    commands[YAW]      = 0; // Value in degrees.
-    commands[PITCH]    = 0; // Value in degrees.
+    // A positive value makes the drone rotate clockwise
+    // A negative value makes the drone rotate counter-clockwise
+    // Value range : [-180, 180]°
+    commands[YAW]      = 0;  // Not implemented yet in the PID automation.
+
+    // A postive value makes the drone lean backwards
+    // A negative value makes the drone lean forewards
+    // Value range : [-45, 45]°
+    commands[PITCH]    = 0;
+
+    // A positive value makes the drone bend to the right
+    // A negative value makes the drone bend to the left
+    // Value range : [-45, 45]°
     commands[ROLL]     = 0; // Value in degrees.
-    commands[THROTTLE] = 45; // Value over 100.
+
+    // A 100 value makes the motors run at full speed
+    // A 0 value stops the motors.
+    // Value range : [0, 100]
+    commands[THROTTLE] = 45;
 
     return commands;
 }
