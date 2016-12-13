@@ -3,10 +3,10 @@
  */
 
 // ----------------------------Local constants ------------------------------
-#define YAW            0
-#define PITCH          1
-#define ROLL           2
-#define THROTTLE       3
+#define YAW      0
+#define PITCH    1
+#define ROLL     2
+#define THROTTLE 3
 // ---------------------------------------------------------------------------
 
 /**
@@ -26,13 +26,13 @@ float* getInstructions()
     // Value range : [-180, 180]°
     commands[YAW]      = 0;  // Not implemented yet in the PID automation.
 
-    // A postive value makes the drone lean backwards
-    // A negative value makes the drone lean forewards
+    // A positive value makes the drone lean backwards
+    // A negative value makes the drone lean forwards
     // Value range : [-45, 45]°
     commands[PITCH]    = 0;
 
-    // A positive value makes the drone bend to the right
-    // A negative value makes the drone bend to the left
+    // A positive value makes the drone lean to the right
+    // A negative value makes the drone lean to the left
     // Value range : [-45, 45]°
     commands[ROLL]     = 0; // Value in degrees.
 

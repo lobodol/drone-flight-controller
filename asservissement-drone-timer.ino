@@ -175,7 +175,7 @@ void loop() {
         mpu.dmpGetGravity(&gravity, &q);
         mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
 
-        measures[YAW]   = ypr[YAW]   * (180 / M_PI) * 0;
+        measures[YAW]   = ypr[YAW]   * (180 / M_PI) * 0; // Not ready yet : force to 0 for now.
         measures[PITCH] = ypr[PITCH] * (180 / M_PI);
         measures[ROLL]  = ypr[ROLL]  * (180 / M_PI);
 
