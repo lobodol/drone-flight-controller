@@ -1,19 +1,19 @@
 /**
  * Calculate errors of Yaw, Pitch & Roll: this is simply the difference between the mesure and the command.
  *
- * @param float[3] mesures : array of the measures in that order : Yaw, Pitch, Roll.
- * @param float[3] cmd     : array of commands in that order : Yaw, Pitch Roll.
- * @return float[3]        : array of calculated errors in that order : Yaw, Pitch, Roll.
+ * @param float[3] measures : array of the measures in that order : Yaw, Pitch, Roll.
+ * @param float[3] cmd      : array of commands in that order : Yaw, Pitch Roll.
+ * @return float[3]         : array of calculated errors in that order : Yaw, Pitch, Roll.
  */
-float* calcErrors(float mesures[3], float cmd[3])
+float *calcErrors(float measures[3], float cmd[3])
 {
-  static float errors[3];
+    static float errors[3];
 
-  errors[YAW]   = mesures[YAW]   - cmd[YAW];
-  errors[PITCH] = mesures[PITCH] - cmd[PITCH];
-  errors[ROLL]  = mesures[ROLL]  - cmd[ROLL];
+    errors[YAW]   = measures[YAW]   - cmd[YAW];
+    errors[PITCH] = measures[PITCH] - cmd[PITCH];
+    errors[ROLL]  = measures[ROLL]  - cmd[ROLL];
 
-  return errors;
+    return errors;
 }
 
 /**
@@ -26,14 +26,14 @@ float* calcErrors(float mesures[3], float cmd[3])
  */
 int normalize(float value)
 {
-  int maxVal = 180;
-  value      = (int)value;
+    int maxVal = 180;
+    value = (int) value;
 
-  if (value > maxVal) {
-    value = maxVal;
-  } else if (value < 0) {
-    value = 0;
-  }
+    if (value > maxVal) {
+        value = maxVal;
+    } else if (value < 0) {
+        value = 0;
+    }
 
-  return value;
+    return value;
 }
