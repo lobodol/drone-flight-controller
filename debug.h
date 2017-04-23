@@ -62,3 +62,22 @@ void dumpSErrors(float errors[3]) {
     Serial.println(errors[2]);
 }
 
+/**
+ * Dump motor commands. Each command must be in [0, 180]°.
+ *
+ * @param float cmdA : command motor A.
+ * @param float cmdB : command motor B.
+ * @param float cmdC : command motor C.
+ * @param float cmdD : command motor D.
+ */
+void dumpCmdMot(float cmdA, float cmdB, float cmdC, float cmdD) {
+    Serial.println("Commandes moteurs:");
+
+    Serial.print(normalize(cmdA));
+    Serial.print(";");
+    Serial.println(normalize(cmdB));
+    Serial.print(normalize(cmdC));
+    Serial.print(";");
+    Serial.println(normalize(cmdD));
+}
+
