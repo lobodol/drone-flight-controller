@@ -1,9 +1,9 @@
 /**
  * Dump input commands on serial port
  *
- * @param int cmd[4] : array of commands (yaw, pitch, roll, throttle)
+ * @param float cmd[4] : array of commands (yaw, pitch, roll, throttle)
  */
-void dumpCommands(int cmd[4]) {
+void dumpCommands(float* cmd) {
     Serial.print("Commandes : ");
 
     Serial.print(cmd[0]);
