@@ -94,6 +94,7 @@ void setup() {
 
         // Enable Arduino interrupt detection
         Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0 : #pin2)..."));
+        // TODO: use digitalPinToInterrupt().
         attachInterrupt(0, dmpDataReady, RISING);
         mpuIntStatus = mpu.getIntStatus();
 
@@ -205,6 +206,7 @@ void initialize_motor() {
 
 /**
  * Init the MPU
+ * TODO: is this function really necessary ?
  */
 void init_imu() {
     Wire.begin();
@@ -220,6 +222,7 @@ void init_imu() {
     if (devStatus == 0) {
         mpu.setDMPEnabled(true);
         // Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)…"));
+        // TODO: use digitalPinToInterrupt().
         attachInterrupt(0, dmpDataReady, RISING);
         mpuIntStatus = mpu.getIntStatus();
         dmpReady = true;
