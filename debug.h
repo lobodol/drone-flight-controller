@@ -6,13 +6,13 @@
 void dumpCommands(float* cmd) {
     Serial.print("Commandes : ");
 
-    Serial.print(cmd[0]);
+    Serial.print(cmd[YAW]);
     Serial.print(";");
-    Serial.print(cmd[1]);
+    Serial.print(cmd[PITCH]);
     Serial.print(";");
-    Serial.print(cmd[2]);
+    Serial.print(cmd[ROLL]);
     Serial.print(";");
-    Serial.print(cmd[3]);
+    Serial.print(cmd[THROTTLE]);
     Serial.print("\n");
 }
 
@@ -24,11 +24,11 @@ void dumpCommands(float* cmd) {
 void dumpMeasures(float *mesures) {
     Serial.print("Mesures : ");
 
-    Serial.print(mesures[0]);
+    Serial.print(mesures[YAW]);
     Serial.print(";");
-    Serial.print(mesures[1]);
+    Serial.print(mesures[PITCH]);
     Serial.print(";");
-    Serial.println(mesures[2]);
+    Serial.println(mesures[ROLL]);
 }
 
 /**
@@ -39,11 +39,11 @@ void dumpMeasures(float *mesures) {
 void dumpErrors(float errors[3]) {
     Serial.print("Erreurs : ");
 
-    Serial.print(errors[0]);
+    Serial.print(errors[YAW]);
     Serial.print(";");
-    Serial.print(errors[1]);
+    Serial.print(errors[PITCH]);
     Serial.print(";");
-    Serial.println(errors[2]);
+    Serial.println(errors[ROLL]);
 }
 
 
@@ -55,11 +55,11 @@ void dumpErrors(float errors[3]) {
 void dumpSErrors(float errors[3]) {
     Serial.print("Somme erreurs : ");
 
-    Serial.print(errors[0]);
+    Serial.print(errors[YAW]);
     Serial.print(";");
-    Serial.print(errors[1]);
+    Serial.print(errors[PITCH]);
     Serial.print(";");
-    Serial.println(errors[2]);
+    Serial.println(errors[ROLL]);
 }
 
 /**
