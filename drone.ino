@@ -246,9 +246,9 @@ void init_imu() {
  * Each motor output is considered as a servomotor. As a result, value range is about 0 to 180° (full speed).
  */
 void automation() {
-    float Kp[3] = {0.0, 0.0, 0.06}; // P coefficients in that order : Yaw, Pitch, Roll
-    float Ki[3] = {0.0, 0.0, 0.01}; // I coefficients in that order : Yaw, Pitch, Roll
-    float Kd[3] = {0, 0, 25};       // D coefficients in that order : Yaw, Pitch, Roll
+    float Kp[3] = {0.0, 0.0, 0.2}; // P coefficients in that order : Yaw, Pitch, Roll
+    float Ki[3] = {0.0, 0.0, 0.0001}; // I coefficients in that order : Yaw, Pitch, Roll
+    float Kd[3] = {0, 0, 20};       // D coefficients in that order : Yaw, Pitch, Roll
     float deltaErr[3] = {0, 0, 0};        // Error deltas in that order :  Yaw, Pitch, Roll
     // Initialize motor commands with throttle
     float cmd_motA = cmd[THROTTLE];
