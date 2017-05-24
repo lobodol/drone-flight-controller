@@ -34,3 +34,13 @@ Arduino libraries:
 |                 Arduino Uno                   |
 +-----------------------------------------------+
 ```
+
+Quadcopter orientation:
+```
+(1) (2)     x
+  \ /     z ↑
+   X       \|
+  / \       +----→ y
+(3) (4)
+
+```
