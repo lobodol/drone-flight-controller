@@ -59,8 +59,12 @@ void dmpDataReady() {
 void setup() {
     init_imu();
 
-    // Call automation routine every ms (sampling frequency = 1kHz)
-    timer.setInterval(1, automation);
+    // Turn LED on to inform that setup started.
+    pinMode(13, OUTPUT);
+    digitalWrite(13, HIGH);
+
+    // Call automation routine every ms (sampling frequency = 100Hz)
+    timer.setInterval(10, automation);
 
     Wire.begin();
     TWBR = 24; // 400kHz I2C clock (200kHz if CPU is 8MHz)
@@ -121,6 +125,9 @@ void setup() {
     motD.attach(7, 1000, 2000);
 
     initialize_motor();
+    
+    // Turn LED off to inform that setup is done.
+    digitalWrite(13, LOW);
 }
 
 
@@ -135,56 +142,53 @@ void loop() {
         return;
     }
 
-    // Wait for MPU interrupt or extra packet(s) available
-    while (!mpuInterrupt && fifoCount < packetSize) {
-        // Do nothing...
-    }
-
-    // Reset interrupt flag and get INT_STATUS byte
-    mpuInterrupt = false;
-    mpuIntStatus = mpu.getIntStatus();
-
-    // Get current FIFO count
-    fifoCount = mpu.getFIFOCount();
-
-    // Check for overflow (this should never happen unless our code is too inefficient)
-    if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
-        // reset so we can continue cleanly
-        mpu.resetFIFO();
-        Serial.println(F("FIFO overflow!"));
-
-        // Otherwise, check for DMP data ready interrupt (this should happen frequently)
-    } else if (mpuIntStatus & 0x02) {
-        // Wait for correct available data length, should be a VERY short wait
-        while (fifoCount < packetSize) {
-            fifoCount = mpu.getFIFOCount();
-        }
-
-        //--- 1. Read instructions from virtual wire ---
-        cmd = getInstructions();
-
-        //--- 2. Read measures from sensor ---
-        // Read a packet from FIFO
-        mpu.getFIFOBytes(fifoBuffer, packetSize);
-
-        // Track FIFO count here in case there is > 1 packet available
-        // (this lets us immediately read more without waiting for an interrupt)
-        fifoCount -= packetSize;
-
-        // Convert Euler angles in degrees
-        mpu.dmpGetQuaternion(&q, fifoBuffer);
-        mpu.dmpGetGravity(&gravity, &q);
-        mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-
-        measures[YAW] = ypr[YAW] * (180 / M_PI) * 0; // Not ready yet : force to 0 for now.
-        measures[PITCH] = ypr[PITCH] * (180 / M_PI);
-        measures[ROLL] = ypr[ROLL] * (180 / M_PI);
-
-//        dumpMeasures(measures);
-
-        //--- 3. Calculate errors compared to instructions ---
-        errors = calcErrors(measures, cmd);
-        //dumpErrors(errors);
+    if (mpuInterrupt || fifoCount >= packetSize) {
+      // Reset interrupt flag and get INT_STATUS byte
+      mpuInterrupt = false;
+      mpuIntStatus = mpu.getIntStatus();
+  
+      // Get current FIFO count
+      fifoCount = mpu.getFIFOCount();
+  
+      // Check for overflow (this should never happen unless our code is too inefficient)
+      if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
+          // reset so we can continue cleanly
+          mpu.resetFIFO();
+          Serial.println(F("FIFO overflow!"));
+  
+          // Otherwise, check for DMP data ready interrupt (this should happen frequently)
+      } else if (mpuIntStatus & 0x02) {
+          // Wait for correct available data length, should be a VERY short wait
+          while (fifoCount < packetSize) {
+              fifoCount = mpu.getFIFOCount();
+          }
+  
+          //--- 1. Read instructions from virtual wire ---
+          cmd = getInstructions();
+  
+          //--- 2. Read measures from sensor ---
+          // Read a packet from FIFO
+          mpu.getFIFOBytes(fifoBuffer, packetSize);
+  
+          // Track FIFO count here in case there is > 1 packet available
+          // (this lets us immediately read more without waiting for an interrupt)
+          fifoCount -= packetSize;
+  
+          // Convert Euler angles in degrees
+          mpu.dmpGetQuaternion(&q, fifoBuffer);
+          mpu.dmpGetGravity(&gravity, &q);
+          mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+  
+          measures[YAW] = ypr[YAW] * (180 / M_PI) * 0; // Not ready yet : force to 0 for now.
+          measures[PITCH] = ypr[PITCH] * (180 / M_PI) * 0;
+          measures[ROLL] = ypr[ROLL] * (180 / M_PI);
+  
+        dumpMeasures(measures);
+  
+          //--- 3. Calculate errors compared to instructions ---
+          errors = calcErrors(measures, cmd);
+          //dumpErrors(errors);
+      }
     }
 }
 
@@ -246,9 +250,9 @@ void init_imu() {
  * Each motor output is considered as a servomotor. As a result, value range is about 0 to 180° (full speed).
  */
 void automation() {
-    float Kp[3] = {0.0, 0.0, 0.2}; // P coefficients in that order : Yaw, Pitch, Roll
+    float Kp[3] = {0.0, 0.0, 0.08}; // P coefficients in that order : Yaw, Pitch, Roll
     float Ki[3] = {0.0, 0.0, 0.0001}; // I coefficients in that order : Yaw, Pitch, Roll
-    float Kd[3] = {0, 0, 20};       // D coefficients in that order : Yaw, Pitch, Roll
+    float Kd[3] = {0, 0, 5};       // D coefficients in that order : Yaw, Pitch, Roll
     float deltaErr[3] = {0, 0, 0};        // Error deltas in that order :  Yaw, Pitch, Roll
     // Initialize motor commands with throttle
     float cmd_motA = cmd[THROTTLE];
@@ -298,7 +302,6 @@ void automation() {
     motC.write(normalize(cmd_motC));
     motD.write(normalize(cmd_motD));
 
-    dumpCmdMot(cmd_motA, cmd_motB, cmd_motC, cmd_motD);
+//    dumpCmdMot(cmd_motA, cmd_motB, cmd_motC, cmd_motD);
 }
-
 
