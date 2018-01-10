@@ -213,8 +213,8 @@ void initialize_esc() {
  * Each motor output is considered as a servomotor. As a result, value range is about 0 to 180° (full speed).
  */
 void automation() {
-    float Kp[3] = {0.0, 0.0, 0.1};    // P coefficients in that order : Yaw, Pitch, Roll //ku = 0.21
-    float Ki[3] = {0.0, 0.0, 0.001};  // I coefficients in that order : Yaw, Pitch, Roll
+    float Kp[3] = {0.0, 0.0, 0.32};    // P coefficients in that order : Yaw, Pitch, Roll //ku = 0.21
+    float Ki[3] = {0.0, 0.0, 0.008};  // I coefficients in that order : Yaw, Pitch, Roll
     float Kd[3] = {0, 0, 10};           // D coefficients in that order : Yaw, Pitch, Roll
     float deltaErr[3] = {0, 0, 0};     // Error deltas in that order :  Yaw, Pitch, Roll
     // Initialize motor commands with throttle
