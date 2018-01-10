@@ -63,3 +63,62 @@ void configureChannelMapping()
     mode_mapping[ROLL]     = CHANNEL1;
     mode_mapping[THROTTLE] = CHANNEL3;
 }
+
+/**
+ * This Interrupt Sub Routine is called each time input 8, 9, 10 or 11 changed state.
+ * Read the receiver signals in order to get flight instructions.
+ *
+ * This routine must be as fast as possible to prevent main program to be messed up.
+ * The trick here is to use port registers to read pin state.
+ * Doing (PINB & B00000001) is the same as digitalRead(8) with the advantage of using less CPU loops.
+ * It is less convenient but more efficient, which is the most important here.
+ *
+ * @see https://www.arduino.cc/en/Reference/PortManipulation
+ */
+ISR(PCINT0_vect) {
+        current_time = micros();
+
+        // Channel 1 -------------------------------------------------
+        if (PINB & B00000001) {                                        // Is input 8 high ?
+            if (previous_state[CHANNEL1] == 0) {                       // Input 8 changed from 0 to 1 (rising edge)
+                previous_state[CHANNEL1] = 1;                          // Save current state
+                timer[CHANNEL1] = current_time;                        // Save current time
+            }
+        } else if (previous_state[CHANNEL1] == 1) {                    // Input 8 changed from 1 to 0 (falling edge)
+            previous_state[CHANNEL1] = 0;                              // Save current state
+            pulse_length[CHANNEL1]   = current_time - timer[CHANNEL1]; // Calculate pulse duration & save it
+        }
+
+        // Channel 2 -------------------------------------------------
+        if (PINB & B00000010) {                                        // Is input 9 high ?
+            if (previous_state[CHANNEL2] == 0) {                       // Input 9 changed from 0 to 1 (rising edge)
+                previous_state[CHANNEL2] = 1;                          // Save current state
+                timer[CHANNEL2] = current_time;                        // Save current time
+            }
+        } else if (previous_state[CHANNEL2] == 1) {                    // Input 9 changed from 1 to 0 (falling edge)
+            previous_state[CHANNEL2] = 0;                              // Save current state
+            pulse_length[CHANNEL2]   = current_time - timer[CHANNEL2]; // Calculate pulse duration & save it
+        }
+
+        // Channel 3 -------------------------------------------------
+        if (PINB & B00000100) {                                        // Is input 10 high ?
+            if (previous_state[CHANNEL3] == 0) {                       // Input 10 changed from 0 to 1 (rising edge)
+                previous_state[CHANNEL3] = 1;                          // Save current state
+                timer[CHANNEL3] = current_time;                        // Save current time
+            }
+        } else if (previous_state[CHANNEL3] == 1) {                    // Input 10 changed from 1 to 0 (falling edge)
+            previous_state[CHANNEL3] = 0;                              // Save current state
+            pulse_length[CHANNEL3]   = current_time - timer[CHANNEL3]; // Calculate pulse duration & save it
+        }
+
+        // Channel 4 -------------------------------------------------
+        if (PINB & B00001000) {                                        // Is input 11 high ?
+            if (previous_state[CHANNEL4] == 0) {                       // Input 11 changed from 0 to 1 (rising edge)
+                previous_state[CHANNEL4] = 1;                          // Save current state
+                timer[CHANNEL4] = current_time;                        // Save current time
+            }
+        } else if (previous_state[CHANNEL4] == 1) {                    // Input 11 changed from 1 to 0 (falling edge)
+            previous_state[CHANNEL4] = 0;                              // Save current state
+            pulse_length[CHANNEL4]   = current_time - timer[CHANNEL4]; // Calculate pulse duration & save it
+        }
+}
