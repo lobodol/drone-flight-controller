@@ -1,10 +1,10 @@
 /**
- * Dump input commands on serial port
+ * Dump received commands on serial port
  *
  * @param float cmd[4] : array of commands (yaw, pitch, roll, throttle)
  */
-void dumpCommands(float* cmd) {
-    Serial.print("Commandes : ");
+void dumpCommands(float cmd[4]) {
+    Serial.print("Commands : ");
 
     Serial.print(cmd[YAW]);
     Serial.print(";");
@@ -17,18 +17,18 @@ void dumpCommands(float* cmd) {
 }
 
 /**
- * Dump sensor's mesures on serial port
+ * Dump sensor's measures on serial port
  *
- * @param float mesures[3] : array of mesures
+ * @param float measures[3] : array of measures
  */
-void dumpMeasures(float *mesures) {
-    Serial.print("Mesures : ");
+void dumpMeasures(float measures[3]) {
+    Serial.print("Measures : ");
 
-    Serial.print(mesures[YAW]);
+    Serial.print(measures[YAW]);
     Serial.print(";");
-    Serial.print(mesures[PITCH]);
+    Serial.print(measures[PITCH]);
     Serial.print(";");
-    Serial.println(mesures[ROLL]);
+    Serial.println(measures[ROLL]);
 }
 
 /**
