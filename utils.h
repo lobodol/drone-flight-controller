@@ -1,20 +1,3 @@
-/**
- * Calculate errors of Yaw, Pitch & Roll: this is simply the difference between the mesure and the command.
- *
- * @param float[3] measures : array of the measures in that order : Yaw, Pitch, Roll.
- * @param float[3] cmd      : array of commands in that order : Yaw, Pitch Roll.
- * @return float[3]         : array of calculated errors in that order : Yaw, Pitch, Roll.
- */
-float *calcErrors(float measures[3], float cmd[3])
-{
-    static float errors[3];
-
-    errors[YAW]   = measures[YAW]   - cmd[YAW];
-    errors[PITCH] = measures[PITCH] - cmd[PITCH];
-    errors[ROLL]  = measures[ROLL]  - cmd[ROLL];
-
-    return errors;
-}
 
 /**
  * Cast float into integer and rectify command : if is greater than 180 or lower than 0.

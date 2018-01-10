@@ -1,11 +1,14 @@
+/**
+ * @author lobodol <grobodol@gmail.com>
+ */
+
 // ---------------------------------------------------------------------------
 #include <Wire.h>
 #include <I2Cdev.h>
 #include <Servo.h>
 #include <SimpleTimer.h>
 #include "MPU6050_6Axis_MotionApps20.h"
-#include "instructions.h"
-#include "SoftwareSerial.h"
+#include "receiver.h"
 #include "utils.h"
 #include "debug.h"
 
@@ -15,12 +18,11 @@ Servo motB;
 Servo motC;
 Servo motD;
 // ------------- Global variables used for PID automation -----------------------------
-float *cmd;                     // Received instructions : [Yaw, Pitch, Roll, Throttle]
-float *errors;                  // Measured errors (used for proportional component) : [Yaw, Pitch, Roll]
-float sErr[3] = {0, 0, 0}; // Error sums (used for integral component) : [Yaw, Pitch, Roll]
-float lastErr[3] = {0, 0, 0}; // Last errors (used for derivative component) : [Yaw, Pitch, Roll]
-float measures[3] = {0, 0, 0}; // Angle measures : [Yaw, Pitch, Roll]
-SimpleTimer timer;
+float errors[3];                     // Measured errors (compared to instructions) : [Yaw, Pitch, Roll]
+float error_sum[3] = {0, 0, 0};      // Error sums (used for integral component) : [Yaw, Pitch, Roll]
+float previous_error[3] = {0, 0, 0}; // Last errors (used for derivative component) : [Yaw, Pitch, Roll]
+float measures[3] = {0, 0, 0};       // Angular measures : [Yaw, Pitch, Roll]
+SimpleTimer pid_timer;               // Timer used to run PID automation at desired frequency.
 // --------------------- MPU650 variables ------------------------------------
 // class default I2C address is 0x68
 // specific I2C addresses may be passed as a parameter here
@@ -28,15 +30,14 @@ SimpleTimer timer;
 // AD0 high = 0x69
 MPU6050 mpu;
 // MPU control/status vars
-bool dmpReady = false; // set true if DMP init was successful
-uint8_t mpuIntStatus;     // holds actual interrupt status byte from MPU
-uint8_t devStatus;        // return status after each device operation (0 = success, !0 = error)
-uint16_t packetSize;       // expected DMP packet size (default is 42 bytes)
-uint16_t fifoCount;        // count of all bytes currently in FIFO
-uint8_t fifoBuffer[64];   // FIFO storage buffer
+uint8_t mpuIntStatus;   // Holds actual interrupt status byte from MPU
+uint8_t devStatus;      // Return status after each device operation (0 = success, !0 = error)
+uint16_t packetSize;    // Expected DMP packet size (default is 42 bytes)
+uint16_t fifoCount;     // Count of all bytes currently in FIFO
+uint8_t fifoBuffer[64]; // FIFO storage buffer
 
 // Orientation/motion vars
-Quaternion q;       // [w, x, y, z]         quaternion container
+Quaternion q;        // [w, x, y, z]         quaternion container
 VectorFloat gravity; // [x, y, z]            gravity vector
 float ypr[3];        // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
 
@@ -44,32 +45,31 @@ volatile bool mpuInterrupt = false;     // Indicates whether MPU interrupt pin h
 // ---------------------------------------------------------------------------
 
 
-
 /**
- * Interrup détection routine
+ * Interrupt detection routine.
  */
 void dmpDataReady() {
     mpuInterrupt = true;
 }
 
-
 /**
  * Setup configuration
  */
 void setup() {
-    init_imu();
-
-    // Turn LED on to inform that setup started.
+    // Turn LED on during setup.
     pinMode(13, OUTPUT);
     digitalWrite(13, HIGH);
 
-    // Call automation routine every ms (sampling frequency = 100Hz)
-    timer.setInterval(10, automation);
+    configureChannelMapping();
 
+    // Call automation routine every 10ms (sampling frequency = 100Hz)
+    pid_timer.setInterval(10, automation);
+
+    // Start I2C communication
     Wire.begin();
     TWBR = 24; // 400kHz I2C clock (200kHz if CPU is 8MHz)
 
-    Serial.begin(57600); // Causes a lot of FIFO Overflows under 38400 bauds
+    Serial.begin(57600);
 
     Serial.println(F("Initializing I2C devices..."));
     mpu.initialize();
@@ -82,7 +82,7 @@ void setup() {
     Serial.println(F("Initializing DMP..."));
     devStatus = mpu.dmpInitialize();
 
-    // MPU calibration
+    // Sensor calibration
     mpu.setXAccelOffset(377);
     mpu.setYAccelOffset(-4033);
     mpu.setZAccelOffset(1591);
@@ -98,13 +98,10 @@ void setup() {
 
         // Enable Arduino interrupt detection
         Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0 : #pin2)..."));
-        // TODO: use digitalPinToInterrupt().
-        attachInterrupt(0, dmpDataReady, RISING);
+        attachInterrupt(digitalPinToInterrupt(2), dmpDataReady, RISING);
         mpuIntStatus = mpu.getIntStatus();
 
-        // Set our DMP Ready flag so the main loop() function knows it's okay to use it
         Serial.println(F("DMP ready! Waiting for first interrupt..."));
-        dmpReady = true;
 
         // Get expected DMP packet size for later comparison
         packetSize = mpu.dmpGetFIFOPacketSize();
@@ -116,17 +113,32 @@ void setup() {
         Serial.print(F("DMP Initialization failed (code "));
         Serial.print(devStatus);
         Serial.println(F(")"));
+
+        // Make LED blink fast and wait for restart.
+        while (true) {
+            digitalWrite(13, LOW);
+            delay(250);
+            digitalWrite(13, HIGH);
+            delay(250);
+        }
     }
 
+    // Configure interrupts for receiver.
+    PCICR  |= (1 << PCIE0);  //Set PCIE0 to enable PCMSK0 scan.
+    PCMSK0 |= (1 << PCINT0); //Set PCINT0 (digital input 8) to trigger an interrupt on state change.
+    PCMSK0 |= (1 << PCINT1); //Set PCINT1 (digital input 9) to trigger an interrupt on state change.
+    PCMSK0 |= (1 << PCINT2); //Set PCINT2 (digital input 10)to trigger an interrupt on state change.
+    PCMSK0 |= (1 << PCINT3); //Set PCINT3 (digital input 11)to trigger an interrupt on state change.
+
     // Define each motor's pin
-    motA.attach(10, 1000, 2000);
+    motA.attach(3, 1000, 2000);
     motB.attach(5, 1000, 2000);
     motC.attach(6, 1000, 2000);
     motD.attach(7, 1000, 2000);
 
-    initialize_motor();
-    
-    // Turn LED off to inform that setup is done.
+    initialize_esc();
+
+    // Turn LED off: setup is done.
     digitalWrite(13, LOW);
 }
 
@@ -135,67 +147,44 @@ void setup() {
  * Main program loop
  */
 void loop() {
-    timer.run();
-
-    // If programming failed, don't try to do anything
-    if (!dmpReady) {
-        return;
-    }
+    pid_timer.run();
 
     if (mpuInterrupt || fifoCount >= packetSize) {
-      // Reset interrupt flag and get INT_STATUS byte
-      mpuInterrupt = false;
-      mpuIntStatus = mpu.getIntStatus();
-  
-      // Get current FIFO count
-      fifoCount = mpu.getFIFOCount();
-  
-      // Check for overflow (this should never happen unless our code is too inefficient)
-      if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
-          // reset so we can continue cleanly
-          mpu.resetFIFO();
-          Serial.println(F("FIFO overflow!"));
-  
-          // Otherwise, check for DMP data ready interrupt (this should happen frequently)
-      } else if (mpuIntStatus & 0x02) {
-          // Wait for correct available data length, should be a VERY short wait
-          while (fifoCount < packetSize) {
-              fifoCount = mpu.getFIFOCount();
-          }
-  
-          //--- 1. Read instructions from virtual wire ---
-          cmd = getInstructions();
-  
-          //--- 2. Read measures from sensor ---
-          // Read a packet from FIFO
-          mpu.getFIFOBytes(fifoBuffer, packetSize);
-  
-          // Track FIFO count here in case there is > 1 packet available
-          // (this lets us immediately read more without waiting for an interrupt)
-          fifoCount -= packetSize;
-  
-          // Convert Euler angles in degrees
-          mpu.dmpGetQuaternion(&q, fifoBuffer);
-          mpu.dmpGetGravity(&gravity, &q);
-          mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
-  
-          measures[YAW] = ypr[YAW] * (180 / M_PI) * 0; // Not ready yet : force to 0 for now.
-          measures[PITCH] = ypr[PITCH] * (180 / M_PI) * 0;
-          measures[ROLL] = ypr[ROLL] * (180 / M_PI);
-  
-        dumpMeasures(measures);
-  
-          //--- 3. Calculate errors compared to instructions ---
-          errors = calcErrors(measures, cmd);
-          //dumpErrors(errors);
-      }
+        // Reset interrupt flag and get INT_STATUS byte
+        mpuInterrupt = false;
+        mpuIntStatus = mpu.getIntStatus();
+
+        // Get current FIFO count
+        fifoCount = mpu.getFIFOCount();
+
+        // Check for overflow (this should never happen unless our code is too inefficient)
+        if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
+            // Reset so we can continue cleanly
+            mpu.resetFIFO();
+            Serial.println(F("FIFO overflow!"));
+
+            // Otherwise, check for DMP data ready interrupt (this should happen frequently)
+        } else if (mpuIntStatus & 0x02) {
+            readSensor();
+//          dumpMeasures(measures);
+
+            getFlightInstruction();
+            dumpCommands(instruction);
+
+            // Calculate errors compared to instructions
+            calculateErrors();
+            //dumpErrors(errors);
+        }
     }
 }
 
 /**
- * ESCs configuration
+ * ESCs configuration.
+ * Send low throttle to each ESC to set lowest point.
+ *
+ * Takes about 4sec.
  */
-void initialize_motor() {
+void initialize_esc() {
     Serial.print("Arming the motors! \n");
 
     motA.write(0);
@@ -206,32 +195,6 @@ void initialize_motor() {
 
     Serial.print("MOTORS ARE READY! \n");
     delay(2000);
-}
-
-/**
- * Init the MPU
- * TODO: is this function really necessary ?
- */
-void init_imu() {
-    Wire.begin();
-    mpu.initialize();
-    devStatus = mpu.dmpInitialize();
-    mpu.setXGyroOffset(-9);
-    mpu.setYGyroOffset(-3);
-    mpu.setZGyroOffset(61);
-    mpu.setXAccelOffset(-449);
-    mpu.setYAccelOffset(2580);
-    mpu.setZAccelOffset(1259);
-
-    if (devStatus == 0) {
-        mpu.setDMPEnabled(true);
-        // Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)…"));
-        // TODO: use digitalPinToInterrupt().
-        attachInterrupt(0, dmpDataReady, RISING);
-        mpuIntStatus = mpu.getIntStatus();
-        dmpReady = true;
-        packetSize = mpu.dmpGetFIFOPacketSize();
-    }
 }
 
 /**
@@ -250,50 +213,57 @@ void init_imu() {
  * Each motor output is considered as a servomotor. As a result, value range is about 0 to 180° (full speed).
  */
 void automation() {
-    float Kp[3] = {0.0, 0.0, 0.08}; // P coefficients in that order : Yaw, Pitch, Roll
-    float Ki[3] = {0.0, 0.0, 0.0001}; // I coefficients in that order : Yaw, Pitch, Roll
-    float Kd[3] = {0, 0, 5};       // D coefficients in that order : Yaw, Pitch, Roll
-    float deltaErr[3] = {0, 0, 0};        // Error deltas in that order :  Yaw, Pitch, Roll
+    float Kp[3] = {0.0, 0.0, 0.1};    // P coefficients in that order : Yaw, Pitch, Roll //ku = 0.21
+    float Ki[3] = {0.0, 0.0, 0.001};  // I coefficients in that order : Yaw, Pitch, Roll
+    float Kd[3] = {0, 0, 10};           // D coefficients in that order : Yaw, Pitch, Roll
+    float deltaErr[3] = {0, 0, 0};     // Error deltas in that order :  Yaw, Pitch, Roll
     // Initialize motor commands with throttle
-    float cmd_motA = cmd[THROTTLE];
-    float cmd_motB = cmd[THROTTLE];
-    float cmd_motC = cmd[THROTTLE];
-    float cmd_motD = cmd[THROTTLE];
+    float cmd_motA = instruction[THROTTLE];
+    float cmd_motB = instruction[THROTTLE];
+    float cmd_motC = instruction[THROTTLE];
+    float cmd_motD = instruction[THROTTLE];
+    float yaw   = 0;
+    float pitch = 0;
+    float roll  = 0;
 
     // Do not calculate anything if throttle is 0
-    if (cmd[THROTTLE] != 0) {
+    if (instruction[THROTTLE] >= 5) {
         // Calculate sum of errors : Integral coefficients
-        sErr[YAW] += errors[YAW];
-        sErr[PITCH] += errors[PITCH];
-        sErr[ROLL] += errors[ROLL];
+        error_sum[YAW]   += errors[YAW];
+        error_sum[PITCH] += errors[PITCH];
+        error_sum[ROLL]  += errors[ROLL];
 
         // Calculate error delta : Derivative coefficients
-        deltaErr[YAW] = errors[YAW] - lastErr[YAW];
-        deltaErr[PITCH] = errors[PITCH] - lastErr[PITCH];
-        deltaErr[ROLL] = errors[ROLL] - lastErr[ROLL];
+        deltaErr[YAW]   = errors[YAW]   - previous_error[YAW];
+        deltaErr[PITCH] = errors[PITCH] - previous_error[PITCH];
+        deltaErr[ROLL]  = errors[ROLL]  - previous_error[ROLL];
 
-        // Save current error as lastErr for next time
-        lastErr[YAW] = errors[YAW];
-        lastErr[PITCH] = errors[PITCH];
-        lastErr[ROLL] = errors[ROLL];
+        // Save current error as previous_error for next time
+        previous_error[YAW]   = errors[YAW];
+        previous_error[PITCH] = errors[PITCH];
+        previous_error[ROLL]  = errors[ROLL];
+
+        yaw   = (errors[YAW]   * Kp[YAW])   + (error_sum[YAW]   * Ki[YAW])   + (deltaErr[YAW]   * Kd[YAW]);
+        pitch = (errors[PITCH] * Kp[PITCH]) + (error_sum[PITCH] * Ki[PITCH]) + (deltaErr[PITCH] * Kd[PITCH]);
+        roll  = (errors[ROLL]  * Kp[ROLL])  + (error_sum[ROLL]  * Ki[ROLL])  + (deltaErr[ROLL]  * Kd[ROLL]);
 
         // Yaw - Lacet (Z axis)
-        cmd_motA -= (errors[YAW] * Kp[YAW] + sErr[YAW] * Ki[YAW] + deltaErr[YAW] * Kd[YAW]);
-        cmd_motD -= (errors[YAW] * Kp[YAW] + sErr[YAW] * Ki[YAW] + deltaErr[YAW] * Kd[YAW]);
-        cmd_motC += (errors[YAW] * Kp[YAW] + sErr[YAW] * Ki[YAW] + deltaErr[YAW] * Kd[YAW]);
-        cmd_motB += (errors[YAW] * Kp[YAW] + sErr[YAW] * Ki[YAW] + deltaErr[YAW] * Kd[YAW]);
+        cmd_motA -= yaw;
+        cmd_motD -= yaw;
+        cmd_motC += yaw;
+        cmd_motB += yaw;
 
         // Pitch - Tangage (Y axis)
-        cmd_motA -= (errors[PITCH] * Kp[PITCH] + sErr[PITCH] * Ki[PITCH] + deltaErr[PITCH] * Kd[PITCH]);
-        cmd_motB -= (errors[PITCH] * Kp[PITCH] + sErr[PITCH] * Ki[PITCH] + deltaErr[PITCH] * Kd[PITCH]);
-        cmd_motC += (errors[PITCH] * Kp[PITCH] + sErr[PITCH] * Ki[PITCH] + deltaErr[PITCH] * Kd[PITCH]);
-        cmd_motD += (errors[PITCH] * Kp[PITCH] + sErr[PITCH] * Ki[PITCH] + deltaErr[PITCH] * Kd[PITCH]);
+        cmd_motA -= pitch;
+        cmd_motB -= pitch;
+        cmd_motC += pitch;
+        cmd_motD += pitch;
 
         // Roll - Roulis (X axis)
-        cmd_motA -= (errors[ROLL] * Kp[ROLL] + sErr[ROLL] * Ki[ROLL] + deltaErr[ROLL] * Kd[ROLL]);
-        cmd_motC -= (errors[ROLL] * Kp[ROLL] + sErr[ROLL] * Ki[ROLL] + deltaErr[ROLL] * Kd[ROLL]);
-        cmd_motB += (errors[ROLL] * Kp[ROLL] + sErr[ROLL] * Ki[ROLL] + deltaErr[ROLL] * Kd[ROLL]);
-        cmd_motD += (errors[ROLL] * Kp[ROLL] + sErr[ROLL] * Ki[ROLL] + deltaErr[ROLL] * Kd[ROLL]);
+        cmd_motA -= roll;
+        cmd_motC -= roll;
+        cmd_motB += roll;
+        cmd_motD += roll;
     }
 
     // Apply speed for each motor
@@ -301,7 +271,104 @@ void automation() {
     motB.write(normalize(cmd_motB));
     motC.write(normalize(cmd_motC));
     motD.write(normalize(cmd_motD));
-
-//    dumpCmdMot(cmd_motA, cmd_motB, cmd_motC, cmd_motD);
 }
 
+/**
+ * Get angular values from MPU sensor.
+ *
+ * @return void
+ */
+void readSensor()
+{
+    // Wait for correct available data length, should be a VERY short wait
+    while (fifoCount < packetSize) {
+        fifoCount = mpu.getFIFOCount();
+    }
+
+    // Read a packet from FIFO
+    mpu.getFIFOBytes(fifoBuffer, packetSize);
+
+    // Track FIFO count here in case there is > 1 packet available
+    // (this lets us immediately read more without waiting for an interrupt)
+    fifoCount -= packetSize;
+
+    // Convert Euler angles in degrees
+    mpu.dmpGetQuaternion(&q, fifoBuffer);
+    mpu.dmpGetGravity(&gravity, &q);
+    mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);
+
+    measures[YAW]   = ypr[YAW]   * (180 / M_PI) * 0; // Not ready yet : force to 0 for now.
+    measures[PITCH] = ypr[PITCH] * (180 / M_PI) * 0; // Force to 0 during PID tuning
+    measures[ROLL]  = ypr[ROLL]  * (180 / M_PI);
+}
+
+/**
+ * Calculate errors of Yaw, Pitch & Roll: this is simply the difference between the measure and the command.
+ *
+ * @return void
+ */
+void calculateErrors()
+{
+    errors[YAW]   = measures[YAW]   - instruction[YAW];
+    errors[PITCH] = measures[PITCH] - instruction[PITCH];
+    errors[ROLL]  = measures[ROLL]  - instruction[ROLL];
+}
+
+/**
+ * This Interrupt Sub Routine is called each time input 8, 9, 10 or 11 changed state.
+ * Read the receiver signals in order to get flight instructions.
+ *
+ * This routine must be as fast as possible to prevent main program to be messed up.
+ * The trick here is to use port registers to read pin state.
+ * Doing (PINB & B00000001) is the same as digitalRead(8) with the advantage of using less CPU loops.
+ * It is less convenient but more efficient, which is the most important here.
+ *
+ * @see https://www.arduino.cc/en/Reference/PortManipulation
+ */
+ISR(PCINT0_vect) {
+    current_time = micros();
+
+    // Channel 1 -------------------------------------------------
+    if (PINB & B00000001) {                                        // Is input 8 high ?
+        if (previous_state[CHANNEL1] == 0) {                       // Input 8 changed from 0 to 1 (rising edge)
+            previous_state[CHANNEL1] = 1;                          // Save current state
+            timer[CHANNEL1] = current_time;                        // Save current time
+        }
+    } else if (previous_state[CHANNEL1] == 1) {                    // Input 8 changed from 1 to 0 (falling edge)
+        previous_state[CHANNEL1] = 0;                              // Save current state
+        pulse_length[CHANNEL1]   = current_time - timer[CHANNEL1]; // Calculate pulse duration & save it
+    }
+
+    // Channel 2 -------------------------------------------------
+    if (PINB & B00000010) {                                        // Is input 9 high ?
+        if (previous_state[CHANNEL2] == 0) {                       // Input 9 changed from 0 to 1 (rising edge)
+            previous_state[CHANNEL2] = 1;                          // Save current state
+            timer[CHANNEL2] = current_time;                        // Save current time
+        }
+    } else if (previous_state[CHANNEL2] == 1) {                    // Input 9 changed from 1 to 0 (falling edge)
+        previous_state[CHANNEL2] = 0;                              // Save current state
+        pulse_length[CHANNEL2]   = current_time - timer[CHANNEL2]; // Calculate pulse duration & save it
+    }
+
+    // Channel 3 -------------------------------------------------
+    if (PINB & B00000100) {                                        // Is input 10 high ?
+        if (previous_state[CHANNEL3] == 0) {                       // Input 10 changed from 0 to 1 (rising edge)
+            previous_state[CHANNEL3] = 1;                          // Save current state
+            timer[CHANNEL3] = current_time;                        // Save current time
+        }
+    } else if (previous_state[CHANNEL3] == 1) {                    // Input 10 changed from 1 to 0 (falling edge)
+        previous_state[CHANNEL3] = 0;                              // Save current state
+        pulse_length[CHANNEL3]   = current_time - timer[CHANNEL3]; // Calculate pulse duration & save it
+    }
+
+    // Channel 4 -------------------------------------------------
+    if (PINB & B00001000) {                                        // Is input 11 high ?
+        if (previous_state[CHANNEL4] == 0) {                       // Input 11 changed from 0 to 1 (rising edge)
+            previous_state[CHANNEL4] = 1;                          // Save current state
+            timer[CHANNEL4] = current_time;                        // Save current time
+        }
+    } else if (previous_state[CHANNEL4] == 1) {                    // Input 11 changed from 1 to 0 (falling edge)
+        previous_state[CHANNEL4] = 0;                              // Save current state
+        pulse_length[CHANNEL4]   = current_time - timer[CHANNEL4]; // Calculate pulse duration & save it
+    }
+}
