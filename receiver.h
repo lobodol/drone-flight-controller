@@ -80,45 +80,45 @@ ISR(PCINT0_vect) {
 
         // Channel 1 -------------------------------------------------
         if (PINB & B00000001) {                                        // Is input 8 high ?
-            if (previous_state[CHANNEL1] == 0) {                       // Input 8 changed from 0 to 1 (rising edge)
-                previous_state[CHANNEL1] = 1;                          // Save current state
+            if (previous_state[CHANNEL1] == LOW) {                     // Input 8 changed from 0 to 1 (rising edge)
+                previous_state[CHANNEL1] = HIGH;                       // Save current state
                 timer[CHANNEL1] = current_time;                        // Save current time
             }
-        } else if (previous_state[CHANNEL1] == 1) {                    // Input 8 changed from 1 to 0 (falling edge)
-            previous_state[CHANNEL1] = 0;                              // Save current state
+        } else if (previous_state[CHANNEL1] == HIGH) {                 // Input 8 changed from 1 to 0 (falling edge)
+            previous_state[CHANNEL1] = LOW;                            // Save current state
             pulse_length[CHANNEL1]   = current_time - timer[CHANNEL1]; // Calculate pulse duration & save it
         }
 
         // Channel 2 -------------------------------------------------
         if (PINB & B00000010) {                                        // Is input 9 high ?
-            if (previous_state[CHANNEL2] == 0) {                       // Input 9 changed from 0 to 1 (rising edge)
-                previous_state[CHANNEL2] = 1;                          // Save current state
+            if (previous_state[CHANNEL2] == LOW) {                     // Input 9 changed from 0 to 1 (rising edge)
+                previous_state[CHANNEL2] = HIGH;                       // Save current state
                 timer[CHANNEL2] = current_time;                        // Save current time
             }
-        } else if (previous_state[CHANNEL2] == 1) {                    // Input 9 changed from 1 to 0 (falling edge)
-            previous_state[CHANNEL2] = 0;                              // Save current state
+        } else if (previous_state[CHANNEL2] == HIGH) {                 // Input 9 changed from 1 to 0 (falling edge)
+            previous_state[CHANNEL2] = LOW;                            // Save current state
             pulse_length[CHANNEL2]   = current_time - timer[CHANNEL2]; // Calculate pulse duration & save it
         }
 
         // Channel 3 -------------------------------------------------
         if (PINB & B00000100) {                                        // Is input 10 high ?
-            if (previous_state[CHANNEL3] == 0) {                       // Input 10 changed from 0 to 1 (rising edge)
-                previous_state[CHANNEL3] = 1;                          // Save current state
+            if (previous_state[CHANNEL3] == LOW) {                     // Input 10 changed from 0 to 1 (rising edge)
+                previous_state[CHANNEL3] = HIGH;                       // Save current state
                 timer[CHANNEL3] = current_time;                        // Save current time
             }
-        } else if (previous_state[CHANNEL3] == 1) {                    // Input 10 changed from 1 to 0 (falling edge)
-            previous_state[CHANNEL3] = 0;                              // Save current state
+        } else if (previous_state[CHANNEL3] == HIGH) {                 // Input 10 changed from 1 to 0 (falling edge)
+            previous_state[CHANNEL3] = LOW;                            // Save current state
             pulse_length[CHANNEL3]   = current_time - timer[CHANNEL3]; // Calculate pulse duration & save it
         }
 
         // Channel 4 -------------------------------------------------
         if (PINB & B00001000) {                                        // Is input 11 high ?
-            if (previous_state[CHANNEL4] == 0) {                       // Input 11 changed from 0 to 1 (rising edge)
-                previous_state[CHANNEL4] = 1;                          // Save current state
+            if (previous_state[CHANNEL4] == LOW) {                     // Input 11 changed from 0 to 1 (rising edge)
+                previous_state[CHANNEL4] = HIGH;                       // Save current state
                 timer[CHANNEL4] = current_time;                        // Save current time
             }
-        } else if (previous_state[CHANNEL4] == 1) {                    // Input 11 changed from 1 to 0 (falling edge)
-            previous_state[CHANNEL4] = 0;                              // Save current state
+        } else if (previous_state[CHANNEL4] == HIGH) {                 // Input 11 changed from 1 to 0 (falling edge)
+            previous_state[CHANNEL4] = LOW;                            // Save current state
             pulse_length[CHANNEL4]   = current_time - timer[CHANNEL4]; // Calculate pulse duration & save it
         }
 }
