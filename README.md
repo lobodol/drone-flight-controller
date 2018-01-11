@@ -50,5 +50,9 @@ Quadcopter orientation:
    X       \|
   / \       +----→ y
 (3) (4)
-
 ```
+
+* Motor 1 : front left  - clockwise
+* Motor 2 : front right - counter-clockwise
+* Motor 3 : rear left   - clockwise
+* Motor 4 : rear left   - counter-clockwise
