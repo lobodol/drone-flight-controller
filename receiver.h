@@ -20,14 +20,14 @@
 float instruction[4];
 
 // Previous state of each channel (HIGH or LOW)
-byte previous_state[4];
+volatile byte previous_state[4];
 
 // Duration of the pulse on each channel of the receiver in µs (must be within 1000µs & 2000µs)
-unsigned int pulse_length[4] = {1500, 1500, 1000, 1500};
+volatile unsigned int pulse_length[4] = {1500, 1500, 1000, 1500};
 
 // Used to calculate pulse duration on each channel.
-unsigned long current_time;
-unsigned long timer[4];
+volatile unsigned long current_time;
+volatile unsigned long timer[4];
 
 // Used to configure which control (yaw, pitch, roll, throttle) is on which channel.
 int mode_mapping[4];
