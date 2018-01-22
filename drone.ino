@@ -70,8 +70,6 @@ float measures[3]       = {0, 0, 0}; // Angular measures : [Yaw, Pitch, Roll]
  * Setup configuration
  */
 void setup() {
-Serial.begin(57600);
-  
     // Turn LED on during setup.
     pinMode(13, OUTPUT);
     digitalWrite(13, HIGH);
@@ -111,8 +109,6 @@ void loop() {
     // 1. First, read angular values from MPU-6050
     readSensor();
     convertRawValues();
-
-    Serial.println(measures[YAW]);
 
     // 2. Then, translate received data into usable values
     getFlightInstruction();
