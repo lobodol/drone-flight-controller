@@ -65,6 +65,7 @@ int temperature;
 // Init flag set to TRUE after first loop
 boolean initialized;
 // ----------------------- Variables for servo signal generation -------------
+unsigned int  period; // Sampling period
 unsigned long loop_timer;
 unsigned long now, difference;
 
@@ -111,6 +112,8 @@ void setup() {
     PCMSK0 |= (1 << PCINT2); //Set PCINT2 (digital input 10)to trigger an interrupt on state change.
     PCMSK0 |= (1 << PCINT3); //Set PCINT3 (digital input 11)to trigger an interrupt on state change.
 
+    period = (1000000/FREQ) ; // Sampling period in µs
+
     // Turn LED off now setup is done.
     digitalWrite(13, LOW);
 }
@@ -149,7 +152,7 @@ void loop() {
  */
 void applyMotorSpeed() {
     // Refresh rate is 250Hz: send ESC pulses every 4000µs
-    while ((now = micros()) - loop_timer < 4000);
+    while ((now = micros()) - loop_timer < period);
 
     // Update loop timer
     loop_timer = now;
