@@ -53,7 +53,6 @@ long acc_total_vector;
 
 int temperature;
 float angle_pitch, angle_roll;
-int angle_pitch_buffer, angle_roll_buffer;
 boolean initialized; // Init flag set to TRUE after first loop
 float angle_roll_acc, angle_pitch_acc;
 // ----------------------- Variables for servo signal generation -------------
