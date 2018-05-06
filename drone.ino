@@ -295,17 +295,10 @@ void automation() {
         pulse_length_esc4 += roll;
     }
 
-    // Maximum value
-    if (pulse_length_esc1 > 2000) pulse_length_esc1 = 2000;
-    if (pulse_length_esc2 > 2000) pulse_length_esc2 = 2000;
-    if (pulse_length_esc3 > 2000) pulse_length_esc3 = 2000;
-    if (pulse_length_esc4 > 2000) pulse_length_esc4 = 2000;
-
-    // Minimum value
-    if (pulse_length_esc1 < 1000) pulse_length_esc1 = 1000;
-    if (pulse_length_esc2 < 1000) pulse_length_esc2 = 1000;
-    if (pulse_length_esc3 < 1000) pulse_length_esc3 = 1000;
-    if (pulse_length_esc4 < 1000) pulse_length_esc4 = 1000;
+    pulse_length_esc1 = minMax(pulse_length_esc1, 1000, 2000);
+    pulse_length_esc2 = minMax(pulse_length_esc2, 1000, 2000);
+    pulse_length_esc3 = minMax(pulse_length_esc3, 1000, 2000);
+    pulse_length_esc4 = minMax(pulse_length_esc4, 1000, 2000);
 }
 
 
@@ -407,6 +400,24 @@ void calibrateMpu6050()
     gyro_offset[X] /= max_samples;
     gyro_offset[Y] /= max_samples;
     gyro_offset[Z] /= max_samples;
+}
+
+/**
+ * Make sure that value is not over min_value/max_value.
+ *
+ * @param float value     : The value to convert
+ * @param float min_value : The min value
+ * @param float max_value : The max value
+ * @return float
+ */
+float minMax(float value, float min_value, float max_value) {
+    if (value > max_value) {
+        value = max;
+    } else if (value < min_value) {
+        value = min_value;
+    }
+
+    return value;
 }
 
 /**
