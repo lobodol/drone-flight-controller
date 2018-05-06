@@ -43,7 +43,8 @@ int mode_mapping[4];
 int gyro_x, gyro_y, gyro_z;
 long acc_x, acc_y, acc_z, acc_total_vector;
 int temperature;
-long gyro_x_cal, gyro_y_cal, gyro_z_cal;
+// Average gyro offsets of each axis in that order: X, Y, Z
+long gyro_offset[3] = {0, 0, 0};
 float angle_pitch, angle_roll;
 int angle_pitch_buffer, angle_roll_buffer;
 boolean set_gyro_angles;
@@ -184,9 +185,9 @@ void readSensor() {
  * @return void
  */
 void convertRawValues() {
-    gyro_x -= gyro_x_cal;                                                //Subtract the offset calibration value from the raw gyro_x value
-    gyro_y -= gyro_y_cal;                                                //Subtract the offset calibration value from the raw gyro_y value
-    gyro_z -= gyro_z_cal;                                                //Subtract the offset calibration value from the raw gyro_z value
+    gyro_x -= gyro_offset[X];                                                //Subtract the offset calibration value from the raw gyro_x value
+    gyro_y -= gyro_offset[Y];                                                //Subtract the offset calibration value from the raw gyro_y value
+    gyro_z -= gyro_offset[Z];                                                //Subtract the offset calibration value from the raw gyro_z value
 
     //Gyro angle calculations
     //0.0000611 = 1 / (250Hz / 65.5)
@@ -375,23 +376,37 @@ void setupMpu6050Registers() {
 }
 
 /**
- * Calibrate MPU6050.
- * During this step, the multicopter needs to be static and on a horizontal surface.
+ * Calibrate MPU6050: take 2000 samples to calculate average offsets.
+ * During this step, the quadcopter needs to be static and on a horizontal surface.
+ *
+ * This function also sends low throttle signal to each ESC to init and prevent them beeping annoyingly.
  *
  * @return void
  */
 void calibrateMpu6050()
 {
-    for (int cal_int = 0; cal_int < 2000; cal_int++) {                  //Run this code 2000 times
-        readSensor();                                              //Read the raw acc and gyro data from the MPU-6050
-        gyro_x_cal += gyro_x;                                              //Add the gyro x-axis offset to the gyro_x_cal variable
-        gyro_y_cal += gyro_y;                                              //Add the gyro y-axis offset to the gyro_y_cal variable
-        gyro_z_cal += gyro_z;                                              //Add the gyro z-axis offset to the gyro_z_cal variable
-        delay(3);                                                          //Delay 3us to simulate the 250Hz program loop
+    int max_samples = 2000;
+
+    for (int i = 0; i < max_samples; i++) {
+        readSensor();
+
+        gyro_offset[X] += gyro_x;
+        gyro_offset[Y] += gyro_y;
+        gyro_offset[Z] += gyro_z;
+
+        // Generate low throttle pulse to init ESC and prevent them beeping
+        PORTD |= B11110000;                  // Set pins #4 #5 #6 #7 HIGH
+        delayMicroseconds(MIN_PULSE_LENGTH); // Wait 1000µs
+        PORTD &= B00001111;                  // Then set LOW
+
+        // Just wait a bit before next loop
+        delay(3);
     }
-    gyro_x_cal /= 2000;                                                  //Divide the gyro_x_cal variable by 2000 to get the avarage offset
-    gyro_y_cal /= 2000;                                                  //Divide the gyro_y_cal variable by 2000 to get the avarage offset
-    gyro_z_cal /= 2000;
+
+    // Calculate average offsets
+    gyro_offset[X] /= max_samples;
+    gyro_offset[Y] /= max_samples;
+    gyro_offset[Z] /= max_samples;
 }
 
 /**
