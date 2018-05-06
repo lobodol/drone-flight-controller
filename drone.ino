@@ -23,7 +23,6 @@
 #define Z           2     // Z axis
 #define MPU_ADDRESS 0x68  // I2C address of the MPU-6050
 #define SSF_GYRO    65.5  // Sensitivity Scale Factor of the gyro from datasheet
-#define SSF_ACC     8.192 // Sensitivity Scale Factor of the accelerometer from datasheet
 // ---------------- Receiver variables ---------------------------------------
 // Received instructions formatted with good units, in that order : [Yaw, Pitch, Roll, Throttle]
 float instruction[4];
