@@ -22,6 +22,7 @@
 #define Y           1     // Y axis
 #define Z           2     // Z axis
 #define MPU_ADDRESS 0x68  // I2C address of the MPU-6050
+#define FREQ        250   // Sampling frequency
 #define SSF_GYRO    65.5  // Sensitivity Scale Factor of the gyro from datasheet
 // ---------------- Receiver variables ---------------------------------------
 // Received instructions formatted with good units, in that order : [Yaw, Pitch, Roll, Throttle]
@@ -46,15 +47,23 @@ int gyro_raw[3] = {0,0,0};
 // Average gyro offsets of each axis in that order: X, Y, Z
 long gyro_offset[3] = {0, 0, 0};
 
+// Calculated angles from gyro's values in that order: X, Y, Z
+float gyro_angle[3]  = {0,0,0};
+
 // The RAW values got from accelerometer (in m/sec²) in that order: X, Y, Z
 int acc_raw[3] = {0 ,0 ,0};
 
+// Calculated angles from accelerometer's values in that order: X, Y, Z
+float acc_angle[3] = {0,0,0};
+
+// Total 3D acceleration vector in m/s²
 long acc_total_vector;
 
+// MPU's temperature
 int temperature;
-float angle_pitch, angle_roll;
-boolean initialized; // Init flag set to TRUE after first loop
-float angle_roll_acc, angle_pitch_acc;
+
+// Init flag set to TRUE after first loop
+boolean initialized;
 // ----------------------- Variables for servo signal generation -------------
 unsigned long loop_timer;
 unsigned long now, difference;
@@ -113,7 +122,7 @@ void setup() {
 void loop() {
     // 1. First, read angular values from MPU-6050
     readSensor();
-    convertRawValues();
+    calculateAngles();
 
     // 2. Then, translate received data into usable values
     getFlightInstruction();
@@ -184,49 +193,66 @@ void readSensor() {
 }
 
 /**
- * Convert RAW values from gyro and accelerometer to usable values.
- * Pitch and Roll are converted in degrees
- * Yaw is convert in degree/sec (an angular rate).
- *
- * @return void
+ * Calculate real angles from gyro and accelerometer's values
  */
-void convertRawValues() {
-    gyro_raw[X] -= gyro_offset[X];                                                //Subtract the offset calibration value from the raw gyro_raw[X] value
-    gyro_raw[Y] -= gyro_offset[Y];                                                //Subtract the offset calibration value from the raw gyro_raw[Y] value
-    gyro_raw[Z] -= gyro_offset[Z];                                                //Subtract the offset calibration value from the raw gyro_raw[Z] value
+void calculateAngles()
+{
+    calculateGyroAngles();
+    calculateAccelerometerAngles();
 
-    //Gyro angle calculations
-    //0.0000611 = 1 / (250Hz / 65.5)
-    angle_pitch += gyro_raw[X] * 0.0000611;                                   //Calculate the traveled pitch angle and add this to the angle_pitch variable
-    angle_roll += gyro_raw[Y] * 0.0000611;                                    //Calculate the traveled roll angle and add this to the angle_roll variable
+    if (initialized) {
+        // Correct the drift of the gyro with the accelerometer
+        gyro_angle[X] = gyro_angle[X] * 0.9996 + acc_angle[X] * 0.0004;
+        gyro_angle[Y] = gyro_angle[Y] * 0.9996 + acc_angle[Y] * 0.0004;
+    } else {
+        // At very first start, init gyro angles with accelerometer angles
+        gyro_angle[X] = acc_angle[X];
+        gyro_angle[Y] = acc_angle[Z];
 
-    //0.000001066 = 0.0000611 * (3.142(PI) / 180degr) The Arduino sin function is in radians
-    angle_pitch += angle_roll * sin(gyro_raw[Z] * 0.000001066);               //If the IMU has yawed transfer the roll angle to the pitch angel
-    angle_roll -= angle_pitch * sin(gyro_raw[Z] * 0.000001066);               //If the IMU has yawed transfer the pitch angle to the roll angel
-
-    //Accelerometer angle calculations
-    acc_total_vector = sqrt((acc_x*acc_x)+(acc_y*acc_y)+(acc_z*acc_z));  //Calculate the total accelerometer vector
-    //57.296 = 1 / (3.142 / 180) The Arduino asin function is in radians
-    angle_pitch_acc = asin((float)acc_y/acc_total_vector)* 57.296;       //Calculate the pitch angle
-    angle_roll_acc = asin((float)acc_x/acc_total_vector)* -57.296;       //Calculate the roll angle
-
-    //Place the MPU-6050 spirit level and note the values in the following two lines for calibration
-    angle_pitch_acc -= 0.0;                                              //Accelerometer calibration value for pitch
-    angle_roll_acc -= 0.0;                                               //Accelerometer calibration value for roll
-
-    if (initialized) {                                                 //If the IMU is already started
-        angle_pitch = angle_pitch * 0.9996 + angle_pitch_acc * 0.0004;     //Correct the drift of the gyro pitch angle with the accelerometer pitch angle
-        angle_roll = angle_roll * 0.9996 + angle_roll_acc * 0.0004;        //Correct the drift of the gyro roll angle with the accelerometer roll angle
-    } else {                                                                //At first start
-        angle_pitch = angle_pitch_acc;                                     //Set the gyro pitch angle equal to the accelerometer pitch angle
-        angle_roll = angle_roll_acc;                                       //Set the gyro roll angle equal to the accelerometer roll angle
-        initialized = true;                                            //Set the IMU started flag
+        initialized = true;
     }
 
-    //To dampen the pitch and roll angles a complementary filter is used
-    measures[ROLL]  = measures[ROLL] * 0.9 + angle_pitch * 0.1;   //Take 90% of the output pitch value and add 10% of the raw pitch value
-    measures[PITCH] = measures[PITCH] * 0.9 + angle_roll * 0.1;      //Take 90% of the output roll value and add 10% of the raw roll value
-    measures[YAW]   = gyro_raw[Z] / SSF_GYRO;
+    // To dampen the pitch and roll angles a complementary filter is used.
+    measures[ROLL]  = measures[ROLL] * 0.9 + gyro_angle[X] * 0.1;
+    measures[PITCH] = measures[PITCH] * 0.9 + gyro_angle[Y] * 0.1;
+    measures[YAW]   = gyro_raw[Z]/SSF_GYRO; // Store the angular motion for this axis
+}
+
+/**
+ * Calculate angles with gyro data
+ */
+void calculateGyroAngles()
+{
+    // Substract offsets
+    gyro_raw[X] -= gyro_offset[X];
+    gyro_raw[Y] -= gyro_offset[Y];
+    gyro_raw[Z] -= gyro_offset[Z];
+
+    // Angle calculation
+    gyro_angle[X] += gyro_raw[X]   / (FREQ * SSF_GYRO);
+    gyro_angle[Y] += (gyro_raw[Y]) / (FREQ * SSF_GYRO);
+
+    // Transfer roll to pitch if IMU has yawed
+    gyro_angle[Y] -= gyro_angle[X] * sin(gyro_raw[Z] * (PI / (FREQ * SSF_GYRO * 180)));
+    gyro_angle[X] += gyro_angle[Y] * sin(gyro_raw[Z] * (PI / (FREQ * SSF_GYRO * 180)));
+}
+
+/**
+ * Calculate angles using only the accelerometer
+ */
+void calculateAccelerometerAngles()
+{
+    // Calculate total 3D acceleration vector
+    acc_total_vector = sqrt(pow(acc_raw[X], 2) + pow(acc_raw[Y], 2) + pow(acc_raw[Z], 2));
+
+    // To prevent asin to produce a NaN, make sure the input value is within [-1;+1]
+    if (abs(acc_raw[X]) < acc_total_vector) {
+        acc_angle[X] = asin((float)acc_raw[Y] / acc_total_vector) * (180 / PI); // asin gives angle in radian. Convert to degree multiplying by 180/pi
+    }
+
+    if (abs(acc_raw[Y]) < acc_total_vector) {
+        acc_angle[Y] = asin((float)acc_raw[X] / acc_total_vector) * (180 / PI);
+    }
 }
 
 /**
@@ -395,7 +421,7 @@ void calibrateMpu6050()
 
         // Generate low throttle pulse to init ESC and prevent them beeping
         PORTD |= B11110000;                  // Set pins #4 #5 #6 #7 HIGH
-        delayMicroseconds(MIN_PULSE_LENGTH); // Wait 1000µs
+        delayMicroseconds(1000); // Wait 1000µs
         PORTD &= B00001111;                  // Then set LOW
 
         // Just wait a bit before next loop
@@ -418,7 +444,7 @@ void calibrateMpu6050()
  */
 float minMax(float value, float min_value, float max_value) {
     if (value > max_value) {
-        value = max;
+        value = max_value;
     } else if (value < min_value) {
         value = min_value;
     }
