@@ -12,7 +12,6 @@
 #define CHANNEL2 1
 #define CHANNEL3 2
 #define CHANNEL4 3
-#define PI acos(-1) // 3.14.....
 
 #define YAW      0
 #define PITCH    1
