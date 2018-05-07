@@ -1,22 +1,16 @@
 # Quadcopter PID implementation
 ## 1. Introduction
 
-The goal of this project is to realize automation routine of an X quadricopter based on an Arduino Uno and the MPU-6050 sensor.
+This Arduino sketch provides a flight controller for an X quadcopter based on an Arduino Uno board and the MPU6050 sensor.
 
-Basicaly, this automation routine is an implementation of a digital PID.
+Basically, this automation routine is an implementation of a digital PID.
 The method used to calculate PID coefficients is Ziegler Nichols method.
 
-This project uses I2Cdev library that can be found here : https://github.com/jrowberg/i2cdevlib
-
-Currently in beta version.
+Currently under development.
 
 ## 2. Requirements
 Arduino libraries:
 * Wire
-* I2C
-* Servo
-* SimpleTimer
-* MPU6050_6Axis_MotionApps20
 
 ## 3. Pin connection:
 ```
