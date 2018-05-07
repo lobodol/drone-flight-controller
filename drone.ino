@@ -25,7 +25,16 @@
 #define FREQ        250   // Sampling frequency
 #define SSF_GYRO    65.5  // Sensitivity Scale Factor of the gyro from datasheet
 // ---------------- Receiver variables ---------------------------------------
-// Received instructions formatted with good units, in that order : [Yaw, Pitch, Roll, Throttle]
+/**
+ * Received flight instructions formatted with good units, in that order : [Yaw, Pitch, Roll, Throttle]
+ * Units:
+ *  - Yaw      : degree/sec
+ *  - Pitch    : degree
+ *  - Roll     : degree
+ *  - Throttle : µs
+ *
+ * @var float[]
+ */
 float instruction[4];
 
 // Previous state of each channel (HIGH or LOW)
@@ -34,11 +43,11 @@ volatile byte previous_state[4];
 // Duration of the pulse on each channel of the receiver in µs (must be within 1000µs & 2000µs)
 volatile unsigned int pulse_length[4] = {1500, 1500, 1000, 1500};
 
-// Used to calculate pulse duration on each channel.
+// Used to calculate pulse duration on each channel
 volatile unsigned long current_time;
-volatile unsigned long timer[4]; // Timer of each channel.
+volatile unsigned long timer[4]; // Timer of each channel
 
-// Used to configure which control (yaw, pitch, roll, throttle) is on which channel.
+// Used to configure which control (yaw, pitch, roll, throttle) is on which channel
 int mode_mapping[4];
 // ----------------------- MPU variables -------------------------------------
 // The RAW values got from gyro (in °/sec) in that order: X, Y, Z
@@ -59,6 +68,14 @@ float acc_angle[3] = {0,0,0};
 // Total 3D acceleration vector in m/s²
 long acc_total_vector;
 
+/**
+ * Real measures on 3 axis calculated from gyro AND accelerometer in that order : Yaw, Pitch, Roll
+ *  - Left wing up implies a positive roll
+ *  - Nose up implies a positive pitch
+ *  - Nose right implies a positive yaw
+ */
+float measures[3] = {0, 0, 0};
+
 // MPU's temperature
 int temperature;
 
@@ -78,14 +95,13 @@ unsigned long pulse_length_esc1 = 1000,
 float errors[3];                     // Measured errors (compared to instructions) : [Yaw, Pitch, Roll]
 float error_sum[3]      = {0, 0, 0}; // Error sums (used for integral component) : [Yaw, Pitch, Roll]
 float previous_error[3] = {0, 0, 0}; // Last errors (used for derivative component) : [Yaw, Pitch, Roll]
-float measures[3]       = {0, 0, 0}; // Angular measures : [Yaw, Pitch, Roll]
 // ---------------------------------------------------------------------------
 
 /**
  * Setup configuration
  */
 void setup() {
-    // Turn LED on during setup.
+    // Turn LED on during setup
     pinMode(13, OUTPUT);
     digitalWrite(13, HIGH);
 
@@ -93,10 +109,10 @@ void setup() {
 
     calibrateMpu6050();
 
-    // Set pins 4 5 6 7 as outputs.
+    // Set pins #4 #5 #6 #7 as outputs
     DDRD |= B11110000;
 
-    // Initialize loop_timer.
+    // Initialize loop_timer
     loop_timer = micros();
 
     configureChannelMapping();
@@ -105,16 +121,16 @@ void setup() {
     Wire.begin();
     TWBR = 24; // 400kHz I2C clock (200kHz if CPU is 8MHz)
 
-    // Configure interrupts for receiver.
-    PCICR  |= (1 << PCIE0);  //Set PCIE0 to enable PCMSK0 scan.
-    PCMSK0 |= (1 << PCINT0); //Set PCINT0 (digital input 8) to trigger an interrupt on state change.
-    PCMSK0 |= (1 << PCINT1); //Set PCINT1 (digital input 9) to trigger an interrupt on state change.
-    PCMSK0 |= (1 << PCINT2); //Set PCINT2 (digital input 10)to trigger an interrupt on state change.
-    PCMSK0 |= (1 << PCINT3); //Set PCINT3 (digital input 11)to trigger an interrupt on state change.
+    // Configure interrupts for receiver
+    PCICR  |= (1 << PCIE0);  //Set PCIE0 to enable PCMSK0 scan
+    PCMSK0 |= (1 << PCINT0); //Set PCINT0 (digital input 8) to trigger an interrupt on state change
+    PCMSK0 |= (1 << PCINT1); //Set PCINT1 (digital input 9) to trigger an interrupt on state change
+    PCMSK0 |= (1 << PCINT2); //Set PCINT2 (digital input 10)to trigger an interrupt on state change
+    PCMSK0 |= (1 << PCINT3); //Set PCINT3 (digital input 11)to trigger an interrupt on state change
 
     period = (1000000/FREQ) ; // Sampling period in µs
 
-    // Turn LED off now setup is done.
+    // Turn LED off now setup is done
     digitalWrite(13, LOW);
 }
 
@@ -217,14 +233,14 @@ void calculateAngles()
         initialized = true;
     }
 
-    // To dampen the pitch and roll angles a complementary filter is used.
-    measures[ROLL]  = measures[ROLL] * 0.9 + gyro_angle[X] * 0.1;
+    // To dampen the pitch and roll angles a complementary filter is used
+    measures[ROLL]  = measures[ROLL]  * 0.9 + gyro_angle[X] * 0.1;
     measures[PITCH] = measures[PITCH] * 0.9 + gyro_angle[Y] * 0.1;
-    measures[YAW]   = gyro_raw[Z]/SSF_GYRO; // Store the angular motion for this axis
+    measures[YAW]   = gyro_raw[Z] / SSF_GYRO; // Store the angular motion for this axis
 }
 
 /**
- * Calculate angles with gyro data
+ * Calculate pitch & roll angles using only the gyro.
  */
 void calculateGyroAngles()
 {
@@ -243,7 +259,7 @@ void calculateGyroAngles()
 }
 
 /**
- * Calculate angles using only the accelerometer
+ * Calculate pitch & roll angles using only the accelerometer.
  */
 void calculateAccelerometerAngles()
 {
@@ -295,37 +311,38 @@ void automation() {
     // Do not calculate anything if throttle is 0
     if (instruction[THROTTLE] >= 1012) {
         // Calculate sum of errors : Integral coefficients
-        error_sum[YAW] += errors[YAW];
+        error_sum[YAW]   += errors[YAW];
         error_sum[PITCH] += errors[PITCH];
-        error_sum[ROLL] += errors[ROLL];
+        error_sum[ROLL]  += errors[ROLL];
 
         // Calculate error delta : Derivative coefficients
-        deltaErr[YAW] = errors[YAW] - previous_error[YAW];
+        deltaErr[YAW]   = errors[YAW]   - previous_error[YAW];
         deltaErr[PITCH] = errors[PITCH] - previous_error[PITCH];
-        deltaErr[ROLL] = errors[ROLL] - previous_error[ROLL];
+        deltaErr[ROLL]  = errors[ROLL]  - previous_error[ROLL];
 
         // Save current error as previous_error for next time
-        previous_error[YAW] = errors[YAW];
+        previous_error[YAW]   = errors[YAW];
         previous_error[PITCH] = errors[PITCH];
-        previous_error[ROLL] = errors[ROLL];
+        previous_error[ROLL]  = errors[ROLL];
 
-        yaw = (errors[YAW] * Kp[YAW]) + (error_sum[YAW] * Ki[YAW]) + (deltaErr[YAW] * Kd[YAW]);
+        // PID = e.Kp + ∫e.Ki + Δe.Kd
+        yaw   = (errors[YAW]   * Kp[YAW])   + (error_sum[YAW]   * Ki[YAW])   + (deltaErr[YAW]   * Kd[YAW]);
         pitch = (errors[PITCH] * Kp[PITCH]) + (error_sum[PITCH] * Ki[PITCH]) + (deltaErr[PITCH] * Kd[PITCH]);
-        roll = (errors[ROLL] * Kp[ROLL]) + (error_sum[ROLL] * Ki[ROLL]) + (deltaErr[ROLL] * Kd[ROLL]);
+        roll  = (errors[ROLL]  * Kp[ROLL])  + (error_sum[ROLL]  * Ki[ROLL])  + (deltaErr[ROLL]  * Kd[ROLL]);
 
-        // Yaw - Lacet (Z axis)
+        // Yaw (Z axis)
         pulse_length_esc1 -= yaw;
         pulse_length_esc4 -= yaw;
         pulse_length_esc3 += yaw;
         pulse_length_esc2 += yaw;
 
-        // Pitch - Tangage (Y axis)
+        // Pitch (Y axis)
         pulse_length_esc1 += pitch;
         pulse_length_esc2 += pitch;
         pulse_length_esc3 -= pitch;
         pulse_length_esc4 -= pitch;
 
-        // Roll - Roulis (X axis)
+        // Roll (X axis)
         pulse_length_esc1 -= roll;
         pulse_length_esc3 -= roll;
         pulse_length_esc2 += roll;
@@ -356,7 +373,7 @@ void calculateErrors() {
  * - Roll     : from -33° to 33°
  * - Pitch    : from -33° to 33°
  * - Yaw      : from -180°/sec to 180°/sec
- * - Throttle : from 1000µs to 2000µs
+ * - Throttle : from 1000µs to 1800µs
  *
  * @return void
  */
@@ -364,7 +381,7 @@ void getFlightInstruction() {
     instruction[YAW]      = map(pulse_length[mode_mapping[YAW]], 1000, 2000, -180, 180);
     instruction[PITCH]    = map(pulse_length[mode_mapping[PITCH]], 1000, 2000, -33, 33);
     instruction[ROLL]     = map(pulse_length[mode_mapping[ROLL]], 1000, 2000, -33, 33);
-    instruction[THROTTLE] = pulse_length[mode_mapping[THROTTLE]];
+    instruction[THROTTLE] = map(pulse_length[mode_mapping[THROTTLE]], 1000, 2000, 1000, 1800); // Get some room to keep control at full speed
 }
 
 /**
@@ -411,6 +428,8 @@ void setupMpu6050Registers() {
  *
  * This function also sends low throttle signal to each ESC to init and prevent them beeping annoyingly.
  *
+ * This function might take ~2sec for 2000 samples.
+ *
  * @return void
  */
 void calibrateMpu6050()
@@ -440,7 +459,7 @@ void calibrateMpu6050()
 }
 
 /**
- * Make sure that value is not over min_value/max_value.
+ * Make sure that given value is not over min_value/max_value range.
  *
  * @param float value     : The value to convert
  * @param float min_value : The min value
