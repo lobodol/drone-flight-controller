@@ -298,9 +298,9 @@ void automation() {
     float Ki[3]       = {0.0, 0, 0};  // I coefficients in that order : Yaw, Pitch, Roll
     float Kd[3]       = {0, 0, 0};    // D coefficients in that order : Yaw, Pitch, Roll
     float deltaErr[3] = {0, 0, 0};    // Error deltas in that order :  Yaw, Pitch, Roll
-    float yaw         = 0;
-    float pitch       = 0;
-    float roll        = 0;
+    float yaw_pid     = 0;
+    float pitch_pid   = 0;
+    float roll_pid    = 0;
 
     // Initialize motor commands with throttle
     pulse_length_esc1 = instruction[THROTTLE];
@@ -326,27 +326,15 @@ void automation() {
         previous_error[ROLL]  = errors[ROLL];
 
         // PID = e.Kp + ∫e.Ki + Δe.Kd
-        yaw   = (errors[YAW]   * Kp[YAW])   + (error_sum[YAW]   * Ki[YAW])   + (deltaErr[YAW]   * Kd[YAW]);
-        pitch = (errors[PITCH] * Kp[PITCH]) + (error_sum[PITCH] * Ki[PITCH]) + (deltaErr[PITCH] * Kd[PITCH]);
-        roll  = (errors[ROLL]  * Kp[ROLL])  + (error_sum[ROLL]  * Ki[ROLL])  + (deltaErr[ROLL]  * Kd[ROLL]);
+        yaw_pid   = (errors[YAW]   * Kp[YAW])   + (error_sum[YAW]   * Ki[YAW])   + (deltaErr[YAW]   * Kd[YAW]);
+        pitch_pid = (errors[PITCH] * Kp[PITCH]) + (error_sum[PITCH] * Ki[PITCH]) + (deltaErr[PITCH] * Kd[PITCH]);
+        roll_pid  = (errors[ROLL]  * Kp[ROLL])  + (error_sum[ROLL]  * Ki[ROLL])  + (deltaErr[ROLL]  * Kd[ROLL]);
 
-        // Yaw (Z axis)
-        pulse_length_esc1 -= yaw;
-        pulse_length_esc4 -= yaw;
-        pulse_length_esc3 += yaw;
-        pulse_length_esc2 += yaw;
-
-        // Pitch (Y axis)
-        pulse_length_esc1 += pitch;
-        pulse_length_esc2 += pitch;
-        pulse_length_esc3 -= pitch;
-        pulse_length_esc4 -= pitch;
-
-        // Roll (X axis)
-        pulse_length_esc1 -= roll;
-        pulse_length_esc3 -= roll;
-        pulse_length_esc2 += roll;
-        pulse_length_esc4 += roll;
+        // Calculate pulse duration for each ESC
+        pulse_length_esc1 = instruction[THROTTLE] - yaw_pid + pitch_pid - roll_pid;
+        pulse_length_esc2 = instruction[THROTTLE] + yaw_pid + pitch_pid + roll_pid;
+        pulse_length_esc3 = instruction[THROTTLE] + yaw_pid - pitch_pid - roll_pid;
+        pulse_length_esc4 = instruction[THROTTLE] - yaw_pid - pitch_pid + roll_pid;
     }
 
     pulse_length_esc1 = minMax(pulse_length_esc1, 1000, 2000);
