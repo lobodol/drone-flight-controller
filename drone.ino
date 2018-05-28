@@ -228,7 +228,7 @@ void calculateAngles()
     } else {
         // At very first start, init gyro angles with accelerometer angles
         gyro_angle[X] = acc_angle[X];
-        gyro_angle[Y] = acc_angle[Z];
+        gyro_angle[Y] = acc_angle[Y];
 
         initialized = true;
     }
