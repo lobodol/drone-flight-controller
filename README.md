@@ -60,6 +60,7 @@ Cx : Receiver channel x
 * Motor 3 : rear left   - clockwise
 * Motor 4 : rear left   - counter-clockwise
 
+![Paper plane](https://www.firediy.fr/images/articles/drone-1/ypr.jpg)
 * Left wing **up** implies a positive roll
 * Nose **up** implies a positive pitch
 * Nose **right** implies a positive yaw
