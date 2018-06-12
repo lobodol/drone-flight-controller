@@ -244,18 +244,18 @@ void calculateAngles()
  */
 void calculateGyroAngles()
 {
-    // Substract offsets
+    // Subtract offsets
     gyro_raw[X] -= gyro_offset[X];
     gyro_raw[Y] -= gyro_offset[Y];
     gyro_raw[Z] -= gyro_offset[Z];
 
-    // Angle calculation
-    gyro_angle[X] += gyro_raw[X]   / (FREQ * SSF_GYRO);
-    gyro_angle[Y] += (gyro_raw[Y]) / (FREQ * SSF_GYRO);
+    // Angle calculation using integration
+    gyro_angle[X] += (gyro_raw[X] / (FREQ * SSF_GYRO));
+    gyro_angle[Y] += (-gyro_raw[Y] / (FREQ * SSF_GYRO)); // Change sign to match the accelerometer's one
 
     // Transfer roll to pitch if IMU has yawed
-    gyro_angle[Y] -= gyro_angle[X] * sin(gyro_raw[Z] * (PI / (FREQ * SSF_GYRO * 180)));
-    gyro_angle[X] += gyro_angle[Y] * sin(gyro_raw[Z] * (PI / (FREQ * SSF_GYRO * 180)));
+    gyro_angle[Y] += gyro_angle[X] * sin(gyro_raw[Z] * (PI / (FREQ * SSF_GYRO * 180)));
+    gyro_angle[X] -= gyro_angle[Y] * sin(gyro_raw[Z] * (PI / (FREQ * SSF_GYRO * 180)));
 }
 
 /**
