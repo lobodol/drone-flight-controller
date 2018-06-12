@@ -331,10 +331,10 @@ void pidController() {
         roll_pid  = (errors[ROLL]  * Kp[ROLL])  + (error_sum[ROLL]  * Ki[ROLL])  + (delta_err[ROLL]  * Kd[ROLL]);
 
         // Calculate pulse duration for each ESC
-        pulse_length_esc1 = instruction[THROTTLE] - roll_pid - pitch_pid + yaw_pid;
-        pulse_length_esc2 = instruction[THROTTLE] + roll_pid - pitch_pid - yaw_pid;
-        pulse_length_esc3 = instruction[THROTTLE] - roll_pid + pitch_pid - yaw_pid;
-        pulse_length_esc4 = instruction[THROTTLE] + roll_pid + pitch_pid + yaw_pid;
+        pulse_length_esc1 = instruction[THROTTLE] + roll_pid + pitch_pid - yaw_pid;
+        pulse_length_esc2 = instruction[THROTTLE] - roll_pid + pitch_pid + yaw_pid;
+        pulse_length_esc3 = instruction[THROTTLE] + roll_pid - pitch_pid + yaw_pid;
+        pulse_length_esc4 = instruction[THROTTLE] - roll_pid - pitch_pid - yaw_pid;
     }
 
     pulse_length_esc1 = minMax(pulse_length_esc1, 1000, 2000);
@@ -522,4 +522,8 @@ ISR(PCINT0_vect) {
         pulse_length[CHANNEL4] = current_time - timer[CHANNEL4];   // Calculate pulse duration & save it
     }
 }
+
+
+
+
 
