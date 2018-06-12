@@ -1,7 +1,7 @@
 # Quadcopter PID implementation
 ## 1. Introduction
 
-This Arduino sketch provides a flight controller for an X quadcopter based on an Arduino Uno board and the MPU6050 sensor.
+This Arduino sketch provides a flight controller for an X quadcopter based on an Arduino Uno board and the [MPU6050 sensor](https://www.invensense.com/wp-content/uploads/2015/02/MPU-6000-Datasheet1.pdf).
 
 Basically, this automation routine is an implementation of a digital PID.
 The method used to calculate PID coefficients is Ziegler Nichols method.
