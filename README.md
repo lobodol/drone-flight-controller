@@ -37,8 +37,10 @@ Mx : Motor X
 Cx : Receiver channel x
 ```
 
-Quadcopter orientation:
+## 4. Quadcopter orientation
+
 ```
+ Front
 (1) (2)     x
   \ /     z ↑
    X       \|
@@ -50,3 +52,7 @@ Quadcopter orientation:
 * Motor 2 : front right - counter-clockwise
 * Motor 3 : rear left   - clockwise
 * Motor 4 : rear left   - counter-clockwise
+
+* Left wing **up** implies a positive roll
+* Nose **up** implies a positive pitch
+* Nose **right** implies a positive yaw
