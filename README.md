@@ -9,8 +9,6 @@ The frame of the quadcopter is based on the F450.
 
 You can use [this](https://github.com/lobodol/ESC-calibration) to calibrate your ESCs.
 
-Currently under development.
-
 ## 2. Requirements
 Arduino libraries:
 * Wire
