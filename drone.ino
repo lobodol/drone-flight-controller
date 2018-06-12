@@ -91,7 +91,7 @@ unsigned long pulse_length_esc1 = 1000,
         pulse_length_esc3 = 1000,
         pulse_length_esc4 = 1000;
 
-// ------------- Global variables used for PID automation --------------------
+// ------------- Global variables used for PID controller --------------------
 float errors[3];                     // Measured errors (compared to instructions) : [Yaw, Pitch, Roll]
 float error_sum[3]      = {0, 0, 0}; // Error sums (used for integral component) : [Yaw, Pitch, Roll]
 float previous_error[3] = {0, 0, 0}; // Last errors (used for derivative component) : [Yaw, Pitch, Roll]
@@ -152,7 +152,7 @@ void loop() {
     calculateErrors();
 
     // 5. Calculate motors speed with PID controller
-    automation();
+    pidController();
 
     // 6. Apply motors speed
     applyMotorSpeed();
@@ -293,7 +293,7 @@ void calculateAccelerometerAngles()
  * 
  * @return void
  */
-void automation() {
+void pidController() {
     float Kp[3]       = {10, 10, 10}; // P coefficients in that order : Yaw, Pitch, Roll //ku = 0.21
     float Ki[3]       = {0.0, 0, 0};  // I coefficients in that order : Yaw, Pitch, Roll
     float Kd[3]       = {0, 0, 0};    // D coefficients in that order : Yaw, Pitch, Roll
