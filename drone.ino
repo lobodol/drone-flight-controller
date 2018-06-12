@@ -294,13 +294,13 @@ void calculateAccelerometerAngles()
  * @return void
  */
 void pidController() {
-    float Kp[3]       = {10, 10, 10}; // P coefficients in that order : Yaw, Pitch, Roll //ku = 0.21
-    float Ki[3]       = {0.0, 0, 0};  // I coefficients in that order : Yaw, Pitch, Roll
-    float Kd[3]       = {0, 0, 0};    // D coefficients in that order : Yaw, Pitch, Roll
-    float deltaErr[3] = {0, 0, 0};    // Error deltas in that order :  Yaw, Pitch, Roll
-    float yaw_pid     = 0;
-    float pitch_pid   = 0;
-    float roll_pid    = 0;
+    float Kp[3]        = {10, 10, 10}; // P coefficients in that order : Yaw, Pitch, Roll //ku = 0.21
+    float Ki[3]        = {0.0, 0, 0};  // I coefficients in that order : Yaw, Pitch, Roll
+    float Kd[3]        = {0, 0, 0};    // D coefficients in that order : Yaw, Pitch, Roll
+    float delta_err[3] = {0, 0, 0};    // Error deltas in that order :  Yaw, Pitch, Roll
+    float yaw_pid      = 0;
+    float pitch_pid    = 0;
+    float roll_pid     = 0;
 
     // Initialize motor commands with throttle
     pulse_length_esc1 = instruction[THROTTLE];
@@ -316,9 +316,9 @@ void pidController() {
         error_sum[ROLL]  += errors[ROLL];
 
         // Calculate error delta : Derivative coefficients
-        deltaErr[YAW]   = errors[YAW]   - previous_error[YAW];
-        deltaErr[PITCH] = errors[PITCH] - previous_error[PITCH];
-        deltaErr[ROLL]  = errors[ROLL]  - previous_error[ROLL];
+        delta_err[YAW]   = errors[YAW]   - previous_error[YAW];
+        delta_err[PITCH] = errors[PITCH] - previous_error[PITCH];
+        delta_err[ROLL]  = errors[ROLL]  - previous_error[ROLL];
 
         // Save current error as previous_error for next time
         previous_error[YAW]   = errors[YAW];
@@ -326,9 +326,9 @@ void pidController() {
         previous_error[ROLL]  = errors[ROLL];
 
         // PID = e.Kp + ∫e.Ki + Δe.Kd
-        yaw_pid   = (errors[YAW]   * Kp[YAW])   + (error_sum[YAW]   * Ki[YAW])   + (deltaErr[YAW]   * Kd[YAW]);
-        pitch_pid = (errors[PITCH] * Kp[PITCH]) + (error_sum[PITCH] * Ki[PITCH]) + (deltaErr[PITCH] * Kd[PITCH]);
-        roll_pid  = (errors[ROLL]  * Kp[ROLL])  + (error_sum[ROLL]  * Ki[ROLL])  + (deltaErr[ROLL]  * Kd[ROLL]);
+        yaw_pid   = (errors[YAW]   * Kp[YAW])   + (error_sum[YAW]   * Ki[YAW])   + (delta_err[YAW]   * Kd[YAW]);
+        pitch_pid = (errors[PITCH] * Kp[PITCH]) + (error_sum[PITCH] * Ki[PITCH]) + (delta_err[PITCH] * Kd[PITCH]);
+        roll_pid  = (errors[ROLL]  * Kp[ROLL])  + (error_sum[ROLL]  * Ki[ROLL])  + (delta_err[ROLL]  * Kd[ROLL]);
 
         // Calculate pulse duration for each ESC
         pulse_length_esc1 = instruction[THROTTLE] - roll_pid - pitch_pid + yaw_pid;
