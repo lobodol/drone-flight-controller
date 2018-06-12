@@ -7,6 +7,8 @@ Basically, this automation routine is an implementation of a digital PID.
 The method used to calculate PID coefficients is Ziegler Nichols method.
 The frame of the quadcopter is based on the F450.
 
+You can use [this](https://github.com/lobodol/ESC-calibration) to calibrate your ESCs.
+
 Currently under development.
 
 ## 2. Requirements
