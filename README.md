@@ -47,7 +47,32 @@ Mx : Motor X
 Cx : Receiver channel x
 ```
 
-## 4. Quadcopter orientation
+## 4. Remote configuration
+By default, this sketch uses the mode 2 for RF remote, according to the following picture:
+
+![remote modes](https://www.firediy.fr/images/articles/drone6/remote_modes.jpg)
+
+The channel mapping is then :
+
+| Channel | Command    |
+| :-----: | :--------: |
+| 1       | ROLL       |
+| 2       | PITCH      |
+| 3       | THROTTLE   |
+| 4       | YAW        |
+
+To change the channel mapping, update the function `configureChannelMapping` according to your needs:
+
+```c
+void configureChannelMapping() {
+    mode_mapping[YAW]      = CHANNEL4;
+    mode_mapping[PITCH]    = CHANNEL2;
+    mode_mapping[ROLL]     = CHANNEL1;
+    mode_mapping[THROTTLE] = CHANNEL3;
+}
+```
+
+## 5. Quadcopter orientation
 
 ```
  Front
