@@ -294,10 +294,10 @@ void calculateAccelerometerAngles()
  * @return void
  */
 void pidController() {
-    float Kp[3]        = {10, 10, 10}; // P coefficients in that order : Yaw, Pitch, Roll //ku = 0.21
-    float Ki[3]        = {0.0, 0, 0};  // I coefficients in that order : Yaw, Pitch, Roll
-    float Kd[3]        = {0, 0, 0};    // D coefficients in that order : Yaw, Pitch, Roll
-    float delta_err[3] = {0, 0, 0};    // Error deltas in that order :  Yaw, Pitch, Roll
+    float Kp[3]        = {4.0, 1.3, 1.3};    // P coefficients in that order : Yaw, Pitch, Roll
+    float Ki[3]        = {0.02, 0.04, 0.04}; // I coefficients in that order : Yaw, Pitch, Roll
+    float Kd[3]        = {0, 18, 18};        // D coefficients in that order : Yaw, Pitch, Roll
+    float delta_err[3] = {0, 0, 0};          // Error deltas in that order   : Yaw, Pitch, Roll
     float yaw_pid      = 0;
     float pitch_pid    = 0;
     float roll_pid     = 0;
