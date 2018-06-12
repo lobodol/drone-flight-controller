@@ -5,6 +5,7 @@ This Arduino sketch provides a flight controller for an X quadcopter based on an
 
 Basically, this automation routine is an implementation of a digital PID.
 The method used to calculate PID coefficients is Ziegler Nichols method.
+The frame of the quadcopter is based on the F450.
 
 Currently under development.
 
