@@ -331,10 +331,10 @@ void automation() {
         roll_pid  = (errors[ROLL]  * Kp[ROLL])  + (error_sum[ROLL]  * Ki[ROLL])  + (deltaErr[ROLL]  * Kd[ROLL]);
 
         // Calculate pulse duration for each ESC
-        pulse_length_esc1 = instruction[THROTTLE] - yaw_pid + pitch_pid - roll_pid;
-        pulse_length_esc2 = instruction[THROTTLE] + yaw_pid + pitch_pid + roll_pid;
-        pulse_length_esc3 = instruction[THROTTLE] + yaw_pid - pitch_pid - roll_pid;
-        pulse_length_esc4 = instruction[THROTTLE] - yaw_pid - pitch_pid + roll_pid;
+        pulse_length_esc1 = instruction[THROTTLE] - roll_pid - pitch_pid + yaw_pid;
+        pulse_length_esc2 = instruction[THROTTLE] + roll_pid - pitch_pid - yaw_pid;
+        pulse_length_esc3 = instruction[THROTTLE] - roll_pid + pitch_pid - yaw_pid;
+        pulse_length_esc4 = instruction[THROTTLE] + roll_pid + pitch_pid + yaw_pid;
     }
 
     pulse_length_esc1 = minMax(pulse_length_esc1, 1000, 2000);
@@ -350,9 +350,9 @@ void automation() {
  * @return void
  */
 void calculateErrors() {
-    errors[YAW]   = measures[YAW]   - instruction[YAW];
-    errors[PITCH] = measures[PITCH] - instruction[PITCH];
-    errors[ROLL]  = measures[ROLL]  - instruction[ROLL];
+    errors[YAW]   = instruction[YAW]   - measures[YAW];
+    errors[PITCH] = instruction[PITCH] - measures[PITCH];
+    errors[ROLL]  = instruction[ROLL]  - measures[ROLL];
 }
 
 /**
