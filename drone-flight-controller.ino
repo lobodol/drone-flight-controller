@@ -367,7 +367,7 @@ void calculateErrors() {
  */
 void getFlightInstruction() {
     instruction[YAW]      = map(pulse_length[mode_mapping[YAW]], 1000, 2000, -180, 180);
-    instruction[PITCH]    = map(pulse_length[mode_mapping[PITCH]], 1000, 2000, -33, 33);
+    instruction[PITCH]    = map(pulse_length[mode_mapping[PITCH]], 1000, 2000, 33, -33);
     instruction[ROLL]     = map(pulse_length[mode_mapping[ROLL]], 1000, 2000, -33, 33);
     instruction[THROTTLE] = map(pulse_length[mode_mapping[THROTTLE]], 1000, 2000, 1000, 1800); // Get some room to keep control at full speed
 }
