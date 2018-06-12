@@ -4,7 +4,7 @@
 This Arduino sketch provides a flight controller for an X quadcopter based on an Arduino Uno board and the [MPU6050 sensor](https://www.invensense.com/wp-content/uploads/2015/02/MPU-6000-Datasheet1.pdf).
 
 Basically, this automation routine is an implementation of a digital PID with a refresh rate of 250Hz.
-The method used to calculate PID coefficients is Ziegler Nichols method.
+The method used to calculate PID coefficients is [Ziegler Nichols method](https://en.wikipedia.org/wiki/PID_controller#Ziegler%E2%80%93Nichols_method).
 The frame of the quadcopter is based on the F450.
 
 You can use [this](https://github.com/lobodol/ESC-calibration) to calibrate your ESCs.
