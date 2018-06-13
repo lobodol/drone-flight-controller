@@ -491,14 +491,40 @@ bool isStarted()
     if (status == 2 && pulse_length[mode_mapping[YAW]] >= 1988 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
         status = 0; // Stopped
 
-        // Reset motors' pulse length to 1000µs to totally stop them
-        pulse_length_esc1 = 1000;
-        pulse_length_esc2 = 1000;
-        pulse_length_esc3 = 1000;
-        pulse_length_esc4 = 1000;
+        stopAll();
+        resetPidController();
     }
 
     return status == 2;
+}
+
+/**
+ * Reset motors' pulse length to 1000µs to totally stop them.
+ */
+void stopAll()
+{
+    pulse_length_esc1 = 1000;
+    pulse_length_esc2 = 1000;
+    pulse_length_esc3 = 1000;
+    pulse_length_esc4 = 1000;
+}
+
+/**
+ * Reset all PID controller's variables.
+ */
+void resetPidController()
+{
+    errors[YAW]   = 0;
+    errors[PITCH] = 0;
+    errors[ROLL]  = 0;
+
+    error_sum[YAW]   = 0;
+    error_sum[PITCH] = 0;
+    error_sum[ROLL]  = 0;
+
+    previous_error[YAW]   = 0;
+    previous_error[PITCH] = 0;
+    previous_error[ROLL]  = 0;
 }
 
 /**
@@ -560,7 +586,3 @@ ISR(PCINT0_vect) {
         pulse_length[CHANNEL4] = current_time - timer[CHANNEL4];   // Calculate pulse duration & save it
     }
 }
-
-
-
-
