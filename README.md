@@ -104,3 +104,8 @@ void pidController() {
 * Left wing **up** implies a positive roll
 * Nose **up** implies a positive pitch
 * Nose **right** implies a positive yaw
+
+## 6. Start/stop
+This sketch comes with a safety process : to start the quadcopter, put the left stick of the remote in the bottom left corner. Then get it back in center position.
+
+To stop the quadcopter, put the left stick in the bottom right corner.
