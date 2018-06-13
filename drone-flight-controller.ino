@@ -474,6 +474,7 @@ float minMax(float value, float min_value, float max_value) {
  * It is less convenient but more efficient, which is the most important here.
  *
  * @see https://www.arduino.cc/en/Reference/PortManipulation
+ * @see https://www.firediy.fr/article/utiliser-sa-radiocommande-avec-un-arduino-drone-ch-6
  */
 ISR(PCINT0_vect) {
     current_time = micros();
@@ -522,8 +523,3 @@ ISR(PCINT0_vect) {
         pulse_length[CHANNEL4] = current_time - timer[CHANNEL4];   // Calculate pulse duration & save it
     }
 }
-
-
-
-
-
