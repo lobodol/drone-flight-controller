@@ -96,6 +96,8 @@ float errors[3];                     // Measured errors (compared to instruction
 float error_sum[3]      = {0, 0, 0}; // Error sums (used for integral component) : [Yaw, Pitch, Roll]
 float previous_error[3] = {0, 0, 0}; // Last errors (used for derivative component) : [Yaw, Pitch, Roll]
 // ---------------------------------------------------------------------------
+int status = 0;
+// ---------------------------------------------------------------------------
 
 /**
  * Setup configuration
@@ -139,20 +141,22 @@ void setup() {
  * Main program loop
  */
 void loop() {
-    // 1. First, read raw values from MPU-6050
-    readSensor();
+    if (isStarted()) {
+        // 1. First, read raw values from MPU-6050
+        readSensor();
 
-    // 2. Calculate angles from gyro & accelerometer's values
-    calculateAngles();
+        // 2. Calculate angles from gyro & accelerometer's values
+        calculateAngles();
 
-    // 3. Translate received data into usable values
-    getFlightInstruction();
+        // 3. Translate received data into usable values
+        getFlightInstruction();
 
-    // 4. Calculate errors comparing received instruction with measures
-    calculateErrors();
+        // 4. Calculate errors comparing received instruction with measures
+        calculateErrors();
 
-    // 5. Calculate motors speed with PID controller
-    pidController();
+        // 5. Calculate motors speed with PID controller
+        pidController();
+    }
 
     // 6. Apply motors speed
     applyMotorSpeed();
@@ -462,6 +466,39 @@ float minMax(float value, float min_value, float max_value) {
     }
 
     return value;
+}
+
+/**
+ * Return whether the quadcopter is started.
+ * To start the quadcopter, move the left stick in bottom left corner then, move it back in center position.
+ * To stop the quadcopter move the left stick in bottom right corner.
+ *
+ * @return bool
+ */
+bool isStarted()
+{
+    // Move left stick in bottom left corner
+    if (status == 0 && pulse_length[mode_mapping[YAW]] <= 1012 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
+        status = 1; // Left corner reached
+    }
+
+    // Then get it back to the center position
+    if (status == 1 && pulse_length[mode_mapping[YAW]] == 1500 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
+        status = 2; // Started
+    }
+
+    // When left stick is moved in the corner right
+    if (status == 2 && pulse_length[mode_mapping[YAW]] >= 1988 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
+        status = 0; // Stopped
+
+        // Reset motors' pulse length to 1000µs to totally stop them
+        pulse_length_esc1 = 1000;
+        pulse_length_esc2 = 1000;
+        pulse_length_esc3 = 1000;
+        pulse_length_esc4 = 1000;
+    }
+
+    return status == 2;
 }
 
 /**
