@@ -141,19 +141,19 @@ void setup() {
  * Main program loop
  */
 void loop() {
+    // 1. First, read raw values from MPU-6050
+    readSensor();
+
+    // 2. Calculate angles from gyro & accelerometer's values
+    calculateAngles();
+
+    // 3. Translate received data into usable values
+    getFlightInstruction();
+
+    // 4. Calculate errors comparing received instruction with measures
+    calculateErrors();
+
     if (isStarted()) {
-        // 1. First, read raw values from MPU-6050
-        readSensor();
-
-        // 2. Calculate angles from gyro & accelerometer's values
-        calculateAngles();
-
-        // 3. Translate received data into usable values
-        getFlightInstruction();
-
-        // 4. Calculate errors comparing received instruction with measures
-        calculateErrors();
-
         // 5. Calculate motors speed with PID controller
         pidController();
     }
