@@ -96,6 +96,8 @@ float errors[3];                     // Measured errors (compared to instruction
 float error_sum[3]      = {0, 0, 0}; // Error sums (used for integral component) : [Yaw, Pitch, Roll]
 float previous_error[3] = {0, 0, 0}; // Last errors (used for derivative component) : [Yaw, Pitch, Roll]
 // ---------------------------------------------------------------------------
+int status = 0;
+// ---------------------------------------------------------------------------
 
 /**
  * Setup configuration
@@ -119,11 +121,11 @@ void setup() {
     configureChannelMapping();
 
     // Configure interrupts for receiver
-    PCICR  |= (1 << PCIE0);  //Set PCIE0 to enable PCMSK0 scan
-    PCMSK0 |= (1 << PCINT0); //Set PCINT0 (digital input 8) to trigger an interrupt on state change
-    PCMSK0 |= (1 << PCINT1); //Set PCINT1 (digital input 9) to trigger an interrupt on state change
-    PCMSK0 |= (1 << PCINT2); //Set PCINT2 (digital input 10)to trigger an interrupt on state change
-    PCMSK0 |= (1 << PCINT3); //Set PCINT3 (digital input 11)to trigger an interrupt on state change
+    PCICR  |= (1 << PCIE0);  // Set PCIE0 to enable PCMSK0 scan
+    PCMSK0 |= (1 << PCINT0); // Set PCINT0 (digital input 8) to trigger an interrupt on state change
+    PCMSK0 |= (1 << PCINT1); // Set PCINT1 (digital input 9) to trigger an interrupt on state change
+    PCMSK0 |= (1 << PCINT2); // Set PCINT2 (digital input 10)to trigger an interrupt on state change
+    PCMSK0 |= (1 << PCINT3); // Set PCINT3 (digital input 11)to trigger an interrupt on state change
 
     period = (1000000/FREQ) ; // Sampling period in µs
 
@@ -151,8 +153,10 @@ void loop() {
     // 4. Calculate errors comparing received instruction with measures
     calculateErrors();
 
-    // 5. Calculate motors speed with PID controller
-    pidController();
+    if (isStarted()) {
+        // 5. Calculate motors speed with PID controller
+        pidController();
+    }
 
     // 6. Apply motors speed
     applyMotorSpeed();
@@ -192,7 +196,7 @@ void applyMotorSpeed() {
 
 /**
  * Request raw values from MPU6050.
- * 
+ *
  * @return void
  */
 void readSensor() {
@@ -290,7 +294,7 @@ void calculateAccelerometerAngles()
  * Motors B & C run counter-clockwise.
  *
  * Each motor output is considered as a servomotor. As a result, value range is about 1000µs to 2000µs
- * 
+ *
  * @return void
  */
 void pidController() {
@@ -393,17 +397,17 @@ void configureChannelMapping() {
  * @return void
  */
 void setupMpu6050Registers() {
-    //Activate the MPU-6050
+    // Activate the MPU-6050
     Wire.beginTransmission(MPU_ADDRESS);      // Start communicating with the MPU-6050
     Wire.write(0x6B);                         // Send the requested starting register
     Wire.write(0x00);                         // Set the requested starting register
     Wire.endTransmission();                   // End the transmission
-    //Configure the accelerometer (+/-8g)
+    // Configure the accelerometer (+/-8g)
     Wire.beginTransmission(MPU_ADDRESS);      // Start communicating with the MPU-6050
     Wire.write(0x1C);                         // Send the requested starting register
     Wire.write(0x10);                         // Set the requested starting register
     Wire.endTransmission();                   // End the transmission
-    //Configure the gyro (500dps full scale)
+    // Configure the gyro (500dps full scale)
     Wire.beginTransmission(MPU_ADDRESS);      // Start communicating with the MPU-6050
     Wire.write(0x1B);                         // Send the requested starting register
     Wire.write(0x08);                         // Set the requested starting register
@@ -465,6 +469,65 @@ float minMax(float value, float min_value, float max_value) {
 }
 
 /**
+ * Return whether the quadcopter is started.
+ * To start the quadcopter, move the left stick in bottom left corner then, move it back in center position.
+ * To stop the quadcopter move the left stick in bottom right corner.
+ *
+ * @return bool
+ */
+bool isStarted()
+{
+    // Move left stick in bottom left corner
+    if (status == 0 && pulse_length[mode_mapping[YAW]] <= 1012 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
+        status = 1; // Left corner reached
+    }
+
+    // Then get it back to the center position
+    if (status == 1 && pulse_length[mode_mapping[YAW]] == 1500 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
+        status = 2; // Started
+    }
+
+    // When left stick is moved in the bottom right corner
+    if (status == 2 && pulse_length[mode_mapping[YAW]] >= 1988 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
+        status = 0; // Stopped
+
+        stopAll();
+        resetPidController();
+    }
+
+    return status == 2;
+}
+
+/**
+ * Reset motors' pulse length to 1000µs to totally stop them.
+ */
+void stopAll()
+{
+    pulse_length_esc1 = 1000;
+    pulse_length_esc2 = 1000;
+    pulse_length_esc3 = 1000;
+    pulse_length_esc4 = 1000;
+}
+
+/**
+ * Reset all PID controller's variables.
+ */
+void resetPidController()
+{
+    errors[YAW]   = 0;
+    errors[PITCH] = 0;
+    errors[ROLL]  = 0;
+
+    error_sum[YAW]   = 0;
+    error_sum[PITCH] = 0;
+    error_sum[ROLL]  = 0;
+
+    previous_error[YAW]   = 0;
+    previous_error[PITCH] = 0;
+    previous_error[ROLL]  = 0;
+}
+
+/**
  * This Interrupt Sub Routine is called each time input 8, 9, 10 or 11 changed state.
  * Read the receiver signals in order to get flight instructions.
  *
@@ -523,7 +586,3 @@ ISR(PCINT0_vect) {
         pulse_length[CHANNEL4] = current_time - timer[CHANNEL4];   // Calculate pulse duration & save it
     }
 }
-
-
-
-
