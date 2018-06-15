@@ -121,11 +121,11 @@ void setup() {
     configureChannelMapping();
 
     // Configure interrupts for receiver
-    PCICR  |= (1 << PCIE0);  //Set PCIE0 to enable PCMSK0 scan
-    PCMSK0 |= (1 << PCINT0); //Set PCINT0 (digital input 8) to trigger an interrupt on state change
-    PCMSK0 |= (1 << PCINT1); //Set PCINT1 (digital input 9) to trigger an interrupt on state change
-    PCMSK0 |= (1 << PCINT2); //Set PCINT2 (digital input 10)to trigger an interrupt on state change
-    PCMSK0 |= (1 << PCINT3); //Set PCINT3 (digital input 11)to trigger an interrupt on state change
+    PCICR  |= (1 << PCIE0);  // Set PCIE0 to enable PCMSK0 scan
+    PCMSK0 |= (1 << PCINT0); // Set PCINT0 (digital input 8) to trigger an interrupt on state change
+    PCMSK0 |= (1 << PCINT1); // Set PCINT1 (digital input 9) to trigger an interrupt on state change
+    PCMSK0 |= (1 << PCINT2); // Set PCINT2 (digital input 10)to trigger an interrupt on state change
+    PCMSK0 |= (1 << PCINT3); // Set PCINT3 (digital input 11)to trigger an interrupt on state change
 
     period = (1000000/FREQ) ; // Sampling period in µs
 
@@ -196,7 +196,7 @@ void applyMotorSpeed() {
 
 /**
  * Request raw values from MPU6050.
- * 
+ *
  * @return void
  */
 void readSensor() {
@@ -294,7 +294,7 @@ void calculateAccelerometerAngles()
  * Motors B & C run counter-clockwise.
  *
  * Each motor output is considered as a servomotor. As a result, value range is about 1000µs to 2000µs
- * 
+ *
  * @return void
  */
 void pidController() {
@@ -397,17 +397,17 @@ void configureChannelMapping() {
  * @return void
  */
 void setupMpu6050Registers() {
-    //Activate the MPU-6050
+    // Activate the MPU-6050
     Wire.beginTransmission(MPU_ADDRESS);      // Start communicating with the MPU-6050
     Wire.write(0x6B);                         // Send the requested starting register
     Wire.write(0x00);                         // Set the requested starting register
     Wire.endTransmission();                   // End the transmission
-    //Configure the accelerometer (+/-8g)
+    // Configure the accelerometer (+/-8g)
     Wire.beginTransmission(MPU_ADDRESS);      // Start communicating with the MPU-6050
     Wire.write(0x1C);                         // Send the requested starting register
     Wire.write(0x10);                         // Set the requested starting register
     Wire.endTransmission();                   // End the transmission
-    //Configure the gyro (500dps full scale)
+    // Configure the gyro (500dps full scale)
     Wire.beginTransmission(MPU_ADDRESS);      // Start communicating with the MPU-6050
     Wire.write(0x1B);                         // Send the requested starting register
     Wire.write(0x08);                         // Set the requested starting register
@@ -487,7 +487,7 @@ bool isStarted()
         status = 2; // Started
     }
 
-    // When left stick is moved in the corner right
+    // When left stick is moved in the bottom right corner
     if (status == 2 && pulse_length[mode_mapping[YAW]] >= 1988 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
         status = 0; // Stopped
 
