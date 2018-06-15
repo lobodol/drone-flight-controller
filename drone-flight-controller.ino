@@ -341,10 +341,10 @@ void pidController() {
         pulse_length_esc4 = instruction[THROTTLE] - roll_pid - pitch_pid - yaw_pid;
     }
 
-    pulse_length_esc1 = minMax(pulse_length_esc1, 1000, 2000);
-    pulse_length_esc2 = minMax(pulse_length_esc2, 1000, 2000);
-    pulse_length_esc3 = minMax(pulse_length_esc3, 1000, 2000);
-    pulse_length_esc4 = minMax(pulse_length_esc4, 1000, 2000);
+    pulse_length_esc1 = minMax(pulse_length_esc1, 1100, 2000);
+    pulse_length_esc2 = minMax(pulse_length_esc2, 1100, 2000);
+    pulse_length_esc3 = minMax(pulse_length_esc3, 1100, 2000);
+    pulse_length_esc4 = minMax(pulse_length_esc4, 1100, 2000);
 }
 
 
