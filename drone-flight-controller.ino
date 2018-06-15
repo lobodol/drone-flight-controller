@@ -101,25 +101,22 @@ float previous_error[3] = {0, 0, 0}; // Last errors (used for derivative compone
  * Setup configuration
  */
 void setup() {
+    // Start I2C communication
+    Wire.begin();
+    TWBR = 24; // 400kHz I2C clock (200kHz if CPU is 8MHz)
+
     // Turn LED on during setup
     pinMode(13, OUTPUT);
     digitalWrite(13, HIGH);
+
+    // Set pins #4 #5 #6 #7 as outputs
+    DDRD |= B11110000;
 
     setupMpu6050Registers();
 
     calibrateMpu6050();
 
-    // Set pins #4 #5 #6 #7 as outputs
-    DDRD |= B11110000;
-
-    // Initialize loop_timer
-    loop_timer = micros();
-
     configureChannelMapping();
-
-    // Start I2C communication
-    Wire.begin();
-    TWBR = 24; // 400kHz I2C clock (200kHz if CPU is 8MHz)
 
     // Configure interrupts for receiver
     PCICR  |= (1 << PCIE0);  //Set PCIE0 to enable PCMSK0 scan
@@ -129,6 +126,9 @@ void setup() {
     PCMSK0 |= (1 << PCINT3); //Set PCINT3 (digital input 11)to trigger an interrupt on state change
 
     period = (1000000/FREQ) ; // Sampling period in µs
+
+    // Initialize loop_timer
+    loop_timer = micros();
 
     // Turn LED off now setup is done
     digitalWrite(13, LOW);
@@ -523,3 +523,7 @@ ISR(PCINT0_vect) {
         pulse_length[CHANNEL4] = current_time - timer[CHANNEL4];   // Calculate pulse duration & save it
     }
 }
+
+
+
+
