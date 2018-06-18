@@ -96,6 +96,14 @@ float errors[3];                     // Measured errors (compared to instruction
 float error_sum[3]      = {0, 0, 0}; // Error sums (used for integral component) : [Yaw, Pitch, Roll]
 float previous_error[3] = {0, 0, 0}; // Last errors (used for derivative component) : [Yaw, Pitch, Roll]
 // ---------------------------------------------------------------------------
+/**
+ * Status of the quadcopter:
+ *   - 0 : stopped
+ *   - 1 : starting
+ *   - 2 : started
+ *
+ * @var int
+ */
 int status = 0;
 // ---------------------------------------------------------------------------
 
