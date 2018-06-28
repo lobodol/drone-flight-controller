@@ -24,6 +24,10 @@
 #define MPU_ADDRESS 0x68  // I2C address of the MPU-6050
 #define FREQ        250   // Sampling frequency
 #define SSF_GYRO    65.5  // Sensitivity Scale Factor of the gyro from datasheet
+
+#define STOPPED  0
+#define STARTING 1
+#define STARTED  2
 // ---------------- Receiver variables ---------------------------------------
 /**
  * Received flight instructions formatted with good units, in that order : [Yaw, Pitch, Roll, Throttle]
@@ -494,25 +498,25 @@ float minMax(float value, float min_value, float max_value) {
  */
 bool isStarted()
 {
-    // Move left stick in bottom left corner
-    if (status == 0 && pulse_length[mode_mapping[YAW]] <= 1012 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
-        status = 1; // Left corner reached
+    // When left stick is moved in the bottom left corner
+    if (status == STOPPED && pulse_length[mode_mapping[YAW]] <= 1012 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
+        status = STARTING; // Left corner reached
     }
 
-    // Then get it back to the center position
-    if (status == 1 && pulse_length[mode_mapping[YAW]] == 1500 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
-        status = 2; // Started
+    // When left stick is moved back in the center position
+    if (status == STARTING && pulse_length[mode_mapping[YAW]] == 1500 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
+        status = STARTED; // Started
     }
 
     // When left stick is moved in the bottom right corner
-    if (status == 2 && pulse_length[mode_mapping[YAW]] >= 1988 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
-        status = 0; // Stopped
+    if (status == STARTED && pulse_length[mode_mapping[YAW]] >= 1988 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
+        status = STOPPED; // Stopped
 
         stopAll();
         resetPidController();
     }
 
-    return status == 2;
+    return status == STARTED;
 }
 
 /**
