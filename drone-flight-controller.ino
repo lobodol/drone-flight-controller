@@ -399,27 +399,36 @@ void configureChannelMapping() {
 
 /**
  * Configure gyro and accelerometer precision as following:
- *  - accelerometer: +/-8g
- *  - gyro: 500dps full scale
+ *  - accelerometer: ±8g
+ *  - gyro: ±500°/s
  *
+ * @see https://www.invensense.com/wp-content/uploads/2015/02/MPU-6000-Register-Map1.pdf
  * @return void
  */
 void setupMpu6050Registers() {
-    // Activate the MPU-6050
-    Wire.beginTransmission(MPU_ADDRESS);      // Start communicating with the MPU-6050
-    Wire.write(0x6B);                         // Send the requested starting register
-    Wire.write(0x00);                         // Set the requested starting register
-    Wire.endTransmission();                   // End the transmission
-    // Configure the accelerometer (+/-8g)
-    Wire.beginTransmission(MPU_ADDRESS);      // Start communicating with the MPU-6050
-    Wire.write(0x1C);                         // Send the requested starting register
-    Wire.write(0x10);                         // Set the requested starting register
-    Wire.endTransmission();                   // End the transmission
-    // Configure the gyro (500dps full scale)
-    Wire.beginTransmission(MPU_ADDRESS);      // Start communicating with the MPU-6050
-    Wire.write(0x1B);                         // Send the requested starting register
-    Wire.write(0x08);                         // Set the requested starting register
-    Wire.endTransmission();                   // End the transmission
+    // Configure power management
+    Wire.beginTransmission(MPU_ADDRESS); // Start communication with MPU
+    Wire.write(0x6B);                    // Request the PWR_MGMT_1 register
+    Wire.write(0x00);                    // Apply the desired configuration to the register
+    Wire.endTransmission();              // End the transmission
+  
+    // Configure the gyro's sensitivity
+    Wire.beginTransmission(MPU_ADDRESS); // Start communication with MPU
+    Wire.write(0x1B);                    // Request the GYRO_CONFIG register
+    Wire.write(0x08);                    // Apply the desired configuration to the register : ±500°/s
+    Wire.endTransmission();              // End the transmission
+  
+    // Configure the acceleromter's sensitivity
+    Wire.beginTransmission(MPU_ADDRESS); // Start communication with MPU
+    Wire.write(0x1C);                    // Request the ACCEL_CONFIG register
+    Wire.write(0x10);                    // Apply the desired configuration to the register : ±8g
+    Wire.endTransmission();              // End the transmission
+  
+    // Configure low pass filter
+    Wire.beginTransmission(MPU_ADDRESS); // Start communication with MPU
+    Wire.write(0x1A);                    // Request the CONFIG register
+    Wire.write(0x03);                    // Set Digital Low Pass Filter about ~43Hz
+    Wire.endTransmission();              // End the transmission
 }
 
 /**
