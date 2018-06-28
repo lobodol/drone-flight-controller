@@ -108,7 +108,7 @@ float previous_error[3] = {0, 0, 0}; // Last errors (used for derivative compone
  *
  * @var int
  */
-int status = 0;
+int status = STOPPED;
 // ---------------------------------------------------------------------------
 
 /**
