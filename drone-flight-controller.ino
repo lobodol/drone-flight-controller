@@ -278,7 +278,7 @@ void calculateGyroAngles()
  */
 void calculateAccelerometerAngles()
 {
-    // Calculate total 3D acceleration vector
+    // Calculate total 3D acceleration vector : √(X² + Y² + Z²)
     acc_total_vector = sqrt(pow(acc_raw[X], 2) + pow(acc_raw[Y], 2) + pow(acc_raw[Z], 2));
 
     // To prevent asin to produce a NaN, make sure the input value is within [-1;+1]
