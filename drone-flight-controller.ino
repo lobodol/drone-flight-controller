@@ -243,8 +243,7 @@ void calculateAngles()
         gyro_angle[Y] = gyro_angle[Y] * 0.9996 + acc_angle[Y] * 0.0004;
     } else {
         // At very first start, init gyro angles with accelerometer angles
-        gyro_angle[X] = acc_angle[X];
-        gyro_angle[Y] = acc_angle[Y];
+        resetGyroAngles();
 
         initialized = true;
     }
@@ -500,23 +499,36 @@ bool isStarted()
 {
     // When left stick is moved in the bottom left corner
     if (status == STOPPED && pulse_length[mode_mapping[YAW]] <= 1012 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
-        status = STARTING; // Left corner reached
+        status = STARTING;
     }
 
     // When left stick is moved back in the center position
     if (status == STARTING && pulse_length[mode_mapping[YAW]] == 1500 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
-        status = STARTED; // Started
+        status = STARTED;
+
+        // Reset PID controller's variables to prevent bump start
+        resetPidController();
+
+        resetGyroAngles();
     }
 
     // When left stick is moved in the bottom right corner
     if (status == STARTED && pulse_length[mode_mapping[YAW]] >= 1988 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
-        status = STOPPED; // Stopped
-
+        status = STOPPED;
+        // Make sure to always stop motors when status is STOPPED
         stopAll();
-        resetPidController();
     }
 
     return status == STARTED;
+}
+
+/**
+ * Reset gyro's angles with accelerometer's angles.
+ */
+void resetGyroAngles()
+{
+    gyro_angle[X] = acc_angle[X];
+    gyro_angle[Y] = acc_angle[Y];
 }
 
 /**
