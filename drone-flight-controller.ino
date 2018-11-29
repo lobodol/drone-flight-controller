@@ -346,6 +346,11 @@ void pidController() {
         pitch_pid = (errors[PITCH] * Kp[PITCH]) + (error_sum[PITCH] * Ki[PITCH]) + (delta_err[PITCH] * Kd[PITCH]);
         roll_pid  = (errors[ROLL]  * Kp[ROLL])  + (error_sum[ROLL]  * Ki[ROLL])  + (delta_err[ROLL]  * Kd[ROLL]);
 
+        // Keep values within acceptable range
+        yaw_pid   = minMax(yaw_pid, -400, 400);
+        pitch_pid = minMax(pitch_pid, -400, 400);
+        roll_pid  = minMax(roll_pid, -400, 400);
+
         // Calculate pulse duration for each ESC
         pulse_length_esc1 = throttle - roll_pid - pitch_pid + yaw_pid;
         pulse_length_esc2 = throttle + roll_pid - pitch_pid - yaw_pid;
