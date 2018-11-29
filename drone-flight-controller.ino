@@ -1,7 +1,7 @@
 /**
  * The software is provided "as is", without any warranty of any kind.
  * Feel free to edit it if needed.
- * 
+ *
  * @author lobodol <grobodol@gmail.com>
  */
 
@@ -72,6 +72,9 @@ float acc_angle[3] = {0,0,0};
 // Total 3D acceleration vector in m/s²
 long acc_total_vector;
 
+// Calculated angular motion on each axis: Yaw, Pitch, Roll
+float angular_motions[3] = {0, 0, 0};
+
 /**
  * Real measures on 3 axis calculated from gyro AND accelerometer in that order : Yaw, Pitch, Roll
  *  - Left wing up implies a positive roll
@@ -96,7 +99,9 @@ unsigned long pulse_length_esc1 = 1000,
         pulse_length_esc4 = 1000;
 
 // ------------- Global variables used for PID controller --------------------
+float pid_set_points[3] = {0, 0, 0}; // Yaw, Pitch, Roll
 float errors[3];                     // Measured errors (compared to instructions) : [Yaw, Pitch, Roll]
+float delta_err[3]      = {0, 0, 0}; // Error deltas in that order   : Yaw, Pitch, Roll
 float error_sum[3]      = {0, 0, 0}; // Error sums (used for integral component) : [Yaw, Pitch, Roll]
 float previous_error[3] = {0, 0, 0}; // Last errors (used for derivative component) : [Yaw, Pitch, Roll]
 // ---------------------------------------------------------------------------
@@ -161,10 +166,10 @@ void loop() {
     // 2. Calculate angles from gyro & accelerometer's values
     calculateAngles();
 
-    // 3. Translate received data into usable values
-    getFlightInstruction();
+    // 3. Calculate set points of PID controller
+    calculateSetPoints();
 
-    // 4. Calculate errors comparing received instruction with measures
+    // 4. Calculate errors comparing angular motions to set points
     calculateErrors();
 
     if (isStarted()) {
@@ -256,6 +261,11 @@ void calculateAngles()
     measures[ROLL]  = measures[ROLL]  * 0.9 + gyro_angle[X] * 0.1;
     measures[PITCH] = measures[PITCH] * 0.9 + gyro_angle[Y] * 0.1;
     measures[YAW]   = -gyro_raw[Z] / SSF_GYRO; // Store the angular motion for this axis
+
+    // TODO why this filter ?
+    angular_motions[ROLL]  = 0.7 * angular_motions[ROLL]  + 0.3 * gyro_raw[X] / SSF_GYRO;
+    angular_motions[PITCH] = 0.7 * angular_motions[PITCH] + 0.3 * gyro_raw[Y] / SSF_GYRO;
+    angular_motions[YAW]   = 0.7 * angular_motions[YAW]   + 0.3 * gyro_raw[Z] / SSF_GYRO;
 }
 
 /**
@@ -313,49 +323,37 @@ void calculateAccelerometerAngles()
  * @return void
  */
 void pidController() {
+    // PID coefficients
     float Kp[3]        = {4.0, 1.3, 1.3};    // P coefficients in that order : Yaw, Pitch, Roll
     float Ki[3]        = {0.02, 0.04, 0.04}; // I coefficients in that order : Yaw, Pitch, Roll
     float Kd[3]        = {0, 18, 18};        // D coefficients in that order : Yaw, Pitch, Roll
-    float delta_err[3] = {0, 0, 0};          // Error deltas in that order   : Yaw, Pitch, Roll
+
     float yaw_pid      = 0;
     float pitch_pid    = 0;
     float roll_pid     = 0;
+    int   throttle     = pulse_length[mode_mapping[THROTTLE]];
 
     // Initialize motor commands with throttle
-    pulse_length_esc1 = instruction[THROTTLE];
-    pulse_length_esc2 = instruction[THROTTLE];
-    pulse_length_esc3 = instruction[THROTTLE];
-    pulse_length_esc4 = instruction[THROTTLE];
+    pulse_length_esc1 = throttle;
+    pulse_length_esc2 = throttle;
+    pulse_length_esc3 = throttle;
+    pulse_length_esc4 = throttle;
 
     // Do not calculate anything if throttle is 0
-    if (instruction[THROTTLE] >= 1012) {
-        // Calculate sum of errors : Integral coefficients
-        error_sum[YAW]   += errors[YAW];
-        error_sum[PITCH] += errors[PITCH];
-        error_sum[ROLL]  += errors[ROLL];
-
-        // Calculate error delta : Derivative coefficients
-        delta_err[YAW]   = errors[YAW]   - previous_error[YAW];
-        delta_err[PITCH] = errors[PITCH] - previous_error[PITCH];
-        delta_err[ROLL]  = errors[ROLL]  - previous_error[ROLL];
-
-        // Save current error as previous_error for next time
-        previous_error[YAW]   = errors[YAW];
-        previous_error[PITCH] = errors[PITCH];
-        previous_error[ROLL]  = errors[ROLL];
-
+    if (throttle >= 1012) {
         // PID = e.Kp + ∫e.Ki + Δe.Kd
         yaw_pid   = (errors[YAW]   * Kp[YAW])   + (error_sum[YAW]   * Ki[YAW])   + (delta_err[YAW]   * Kd[YAW]);
         pitch_pid = (errors[PITCH] * Kp[PITCH]) + (error_sum[PITCH] * Ki[PITCH]) + (delta_err[PITCH] * Kd[PITCH]);
         roll_pid  = (errors[ROLL]  * Kp[ROLL])  + (error_sum[ROLL]  * Ki[ROLL])  + (delta_err[ROLL]  * Kd[ROLL]);
 
         // Calculate pulse duration for each ESC
-        pulse_length_esc1 = instruction[THROTTLE] + roll_pid + pitch_pid - yaw_pid;
-        pulse_length_esc2 = instruction[THROTTLE] - roll_pid + pitch_pid + yaw_pid;
-        pulse_length_esc3 = instruction[THROTTLE] + roll_pid - pitch_pid + yaw_pid;
-        pulse_length_esc4 = instruction[THROTTLE] - roll_pid - pitch_pid - yaw_pid;
+        pulse_length_esc1 = throttle - roll_pid - pitch_pid + yaw_pid;
+        pulse_length_esc2 = throttle + roll_pid - pitch_pid - yaw_pid;
+        pulse_length_esc3 = throttle - roll_pid + pitch_pid - yaw_pid;
+        pulse_length_esc4 = throttle + roll_pid + pitch_pid + yaw_pid;
     }
 
+    // Prevent out-of-range-values
     pulse_length_esc1 = minMax(pulse_length_esc1, 1100, 2000);
     pulse_length_esc2 = minMax(pulse_length_esc2, 1100, 2000);
     pulse_length_esc3 = minMax(pulse_length_esc3, 1100, 2000);
@@ -364,14 +362,30 @@ void pidController() {
 
 
 /**
- * Calculate errors of Yaw, Pitch & Roll: this is simply the difference between the measure and the command.
+ * Calculate errors used by PID controller
  *
  * @return void
  */
 void calculateErrors() {
-    errors[YAW]   = instruction[YAW]   - measures[YAW];
-    errors[PITCH] = instruction[PITCH] - measures[PITCH];
-    errors[ROLL]  = instruction[ROLL]  - measures[ROLL];
+    // Calculate current errors
+    errors[YAW]   = angular_motions[YAW]   - pid_set_points[YAW];
+    errors[PITCH] = angular_motions[PITCH] - pid_set_points[PITCH];
+    errors[ROLL]  = angular_motions[ROLL]  - pid_set_points[ROLL];
+
+    // Calculate sum of errors : Integral coefficients
+    error_sum[YAW]   += errors[YAW];
+    error_sum[PITCH] += errors[PITCH];
+    error_sum[ROLL]  += errors[ROLL];
+
+    // Calculate error delta : Derivative coefficients
+    delta_err[YAW]   = errors[YAW]   - previous_error[YAW];
+    delta_err[PITCH] = errors[PITCH] - previous_error[PITCH];
+    delta_err[ROLL]  = errors[ROLL]  - previous_error[ROLL];
+
+    // Save current error as previous_error for next time
+    previous_error[YAW]   = errors[YAW];
+    previous_error[PITCH] = errors[PITCH];
+    previous_error[ROLL]  = errors[ROLL];
 }
 
 /**
@@ -382,6 +396,7 @@ void calculateErrors() {
  * - Yaw      : from -180°/sec to 180°/sec
  * - Throttle : from 1000µs to 1800µs
  *
+ * @deprecated
  * @return void
  */
 void getFlightInstruction() {
@@ -418,19 +433,19 @@ void setupMpu6050Registers() {
     Wire.write(0x6B);                    // Request the PWR_MGMT_1 register
     Wire.write(0x00);                    // Apply the desired configuration to the register
     Wire.endTransmission();              // End the transmission
-  
+
     // Configure the gyro's sensitivity
     Wire.beginTransmission(MPU_ADDRESS); // Start communication with MPU
     Wire.write(0x1B);                    // Request the GYRO_CONFIG register
     Wire.write(0x08);                    // Apply the desired configuration to the register : ±500°/s
     Wire.endTransmission();              // End the transmission
-  
+
     // Configure the acceleromter's sensitivity
     Wire.beginTransmission(MPU_ADDRESS); // Start communication with MPU
     Wire.write(0x1C);                    // Request the ACCEL_CONFIG register
     Wire.write(0x10);                    // Apply the desired configuration to the register : ±8g
     Wire.endTransmission();              // End the transmission
-  
+
     // Configure low pass filter
     Wire.beginTransmission(MPU_ADDRESS); // Start communication with MPU
     Wire.write(0x1A);                    // Request the CONFIG register
@@ -460,9 +475,9 @@ void calibrateMpu6050()
         gyro_offset[Z] += gyro_raw[Z];
 
         // Generate low throttle pulse to init ESC and prevent them beeping
-        PORTD |= B11110000;                  // Set pins #4 #5 #6 #7 HIGH
+        PORTD |= B11110000;      // Set pins #4 #5 #6 #7 HIGH
         delayMicroseconds(1000); // Wait 1000µs
-        PORTD &= B00001111;                  // Then set LOW
+        PORTD &= B00001111;      // Then set LOW
 
         // Just wait a bit before next loop
         delay(3);
@@ -562,6 +577,41 @@ void resetPidController()
     previous_error[YAW]   = 0;
     previous_error[PITCH] = 0;
     previous_error[ROLL]  = 0;
+}
+
+/**
+ * Calculate PID set points on axis YAW, PITCH, ROLL
+ */
+void calculateSetPoints()
+{
+    pid_set_points[YAW]   = calculateSetPoint(0, pulse_length[mode_mapping[YAW]]);
+    pid_set_points[PITCH] = calculateSetPoint(measures[PITCH], pulse_length[mode_mapping[PITCH]]);
+    pid_set_points[ROLL]  = calculateSetPoint(measures[ROLL], pulse_length[mode_mapping[ROLL]]);
+}
+
+/**
+ * Calculate the PID set point in °/s
+ *
+ * @param float angle         Measured angle (in °) on an axis
+ * @param int   channel_pulse Pulse length of the corresponding receiver channel
+ * @return float
+ */
+float calculateSetPoint(float angle, int channel_pulse)
+{
+    float level_adjust = angle * 15; // TODO explain why 15
+    float set_point    = 0;
+
+    // Need a dead band of 16µs for better result
+    if (channel_pulse > 1508) {
+        set_point = channel_pulse - 1508;
+    } else if (channel_pulse <  1492) {
+        set_point = channel_pulse - 1492;
+    }
+
+    set_point -= level_adjust;
+    set_point /= 3;
+
+    return set_point;
 }
 
 /**
