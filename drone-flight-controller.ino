@@ -190,8 +190,6 @@ void loop() {
  * This function might not take more than 2ms to run, which lets 2ms remaining to do other stuff.
  *
  * @see https:// www.arduino.cc/en/Reference/PortManipulation
- *
- * @return void
  */
 void applyMotorSpeed() {
     // Refresh rate is 250Hz: send ESC pulses every 4000µs
@@ -217,8 +215,6 @@ void applyMotorSpeed() {
 
 /**
  * Request raw values from MPU6050.
- *
- * @return void
  */
 void readSensor() {
     Wire.beginTransmission(MPU_ADDRESS); // Start communicating with the MPU-6050
@@ -319,8 +315,6 @@ void calculateAccelerometerAngles()
  * Motors B & C run counter-clockwise.
  *
  * Each motor output is considered as a servomotor. As a result, value range is about 1000µs to 2000µs
- *
- * @return void
  */
 void pidController() {
     // PID coefficients
@@ -368,8 +362,6 @@ void pidController() {
 
 /**
  * Calculate errors used by PID controller
- *
- * @return void
  */
 void calculateErrors() {
     // Calculate current errors
@@ -402,7 +394,6 @@ void calculateErrors() {
  * - Throttle : from 1000µs to 1800µs
  *
  * @deprecated
- * @return void
  */
 void getFlightInstruction() {
     instruction[YAW]      = map(pulse_length[mode_mapping[YAW]], 1000, 2000, -180, 180);
@@ -414,8 +405,6 @@ void getFlightInstruction() {
 /**
  * Customize mapping of controls: set here which command is on which channel and call
  * this function in setup() routine.
- *
- * @return void
  */
 void configureChannelMapping() {
     mode_mapping[YAW]      = CHANNEL4;
@@ -430,7 +419,6 @@ void configureChannelMapping() {
  *  - gyro: ±500°/s
  *
  * @see https://www.invensense.com/wp-content/uploads/2015/02/MPU-6000-Register-Map1.pdf
- * @return void
  */
 void setupMpu6050Registers() {
     // Configure power management
@@ -465,8 +453,6 @@ void setupMpu6050Registers() {
  * This function also sends low throttle signal to each ESC to init and prevent them beeping annoyingly.
  *
  * This function might take ~2sec for 2000 samples.
- *
- * @return void
  */
 void calibrateMpu6050()
 {
@@ -500,6 +486,7 @@ void calibrateMpu6050()
  * @param float value     : The value to convert
  * @param float min_value : The min value
  * @param float max_value : The max value
+ *
  * @return float
  */
 float minMax(float value, float min_value, float max_value) {
