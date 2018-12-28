@@ -94,16 +94,21 @@ unsigned long loop_timer;
 unsigned long now, difference;
 
 unsigned long pulse_length_esc1 = 1000,
-        pulse_length_esc2 = 1000,
-        pulse_length_esc3 = 1000,
-        pulse_length_esc4 = 1000;
+              pulse_length_esc2 = 1000,
+              pulse_length_esc3 = 1000,
+              pulse_length_esc4 = 1000;
 
 // ------------- Global variables used for PID controller --------------------
 float pid_set_points[3] = {0, 0, 0}; // Yaw, Pitch, Roll
+// Errors
 float errors[3];                     // Measured errors (compared to instructions) : [Yaw, Pitch, Roll]
 float delta_err[3]      = {0, 0, 0}; // Error deltas in that order   : Yaw, Pitch, Roll
 float error_sum[3]      = {0, 0, 0}; // Error sums (used for integral component) : [Yaw, Pitch, Roll]
 float previous_error[3] = {0, 0, 0}; // Last errors (used for derivative component) : [Yaw, Pitch, Roll]
+// PID coefficients
+float Kp[3] = {4.0, 1.3, 1.3};    // P coefficients in that order : Yaw, Pitch, Roll
+float Ki[3] = {0.02, 0.04, 0.04}; // I coefficients in that order : Yaw, Pitch, Roll
+float Kd[3] = {0, 18, 18};        // D coefficients in that order : Yaw, Pitch, Roll
 // ---------------------------------------------------------------------------
 /**
  * Status of the quadcopter:
@@ -317,11 +322,6 @@ void calculateAccelerometerAngles()
  * Each motor output is considered as a servomotor. As a result, value range is about 1000µs to 2000µs
  */
 void pidController() {
-    // PID coefficients
-    float Kp[3]        = {4.0, 1.3, 1.3};    // P coefficients in that order : Yaw, Pitch, Roll
-    float Ki[3]        = {0.02, 0.04, 0.04}; // I coefficients in that order : Yaw, Pitch, Roll
-    float Kd[3]        = {0, 18, 18};        // D coefficients in that order : Yaw, Pitch, Roll
-
     float yaw_pid      = 0;
     float pitch_pid    = 0;
     float roll_pid     = 0;
@@ -340,7 +340,7 @@ void pidController() {
         pitch_pid = (errors[PITCH] * Kp[PITCH]) + (error_sum[PITCH] * Ki[PITCH]) + (delta_err[PITCH] * Kd[PITCH]);
         roll_pid  = (errors[ROLL]  * Kp[ROLL])  + (error_sum[ROLL]  * Ki[ROLL])  + (delta_err[ROLL]  * Kd[ROLL]);
 
-        // Keep values within acceptable range
+        // Keep values within acceptable range. TODO export hard-coded values in variables/const
         yaw_pid   = minMax(yaw_pid, -400, 400);
         pitch_pid = minMax(pitch_pid, -400, 400);
         roll_pid  = minMax(roll_pid, -400, 400);
