@@ -94,9 +94,9 @@ unsigned long loop_timer;
 unsigned long now, difference;
 
 unsigned long pulse_length_esc1 = 1000,
-              pulse_length_esc2 = 1000,
-              pulse_length_esc3 = 1000,
-              pulse_length_esc4 = 1000;
+        pulse_length_esc2 = 1000,
+        pulse_length_esc3 = 1000,
+        pulse_length_esc4 = 1000;
 
 // ------------- Global variables used for PID controller --------------------
 float pid_set_points[3] = {0, 0, 0}; // Yaw, Pitch, Roll
@@ -159,7 +159,6 @@ void setup() {
     // Turn LED off now setup is done
     digitalWrite(13, LOW);
 }
-
 
 /**
  * Main program loop
@@ -242,8 +241,7 @@ void readSensor() {
 /**
  * Calculate real angles from gyro and accelerometer's values
  */
-void calculateAngles()
-{
+void calculateAngles() {
     calculateGyroAngles();
     calculateAccelerometerAngles();
 
@@ -272,8 +270,7 @@ void calculateAngles()
 /**
  * Calculate pitch & roll angles using only the gyro.
  */
-void calculateGyroAngles()
-{
+void calculateGyroAngles() {
     // Subtract offsets
     gyro_raw[X] -= gyro_offset[X];
     gyro_raw[Y] -= gyro_offset[Y];
@@ -291,8 +288,7 @@ void calculateGyroAngles()
 /**
  * Calculate pitch & roll angles using only the accelerometer.
  */
-void calculateAccelerometerAngles()
-{
+void calculateAccelerometerAngles() {
     // Calculate total 3D acceleration vector : √(X² + Y² + Z²)
     acc_total_vector = sqrt(pow(acc_raw[X], 2) + pow(acc_raw[Y], 2) + pow(acc_raw[Z], 2));
 
@@ -358,7 +354,6 @@ void pidController() {
     pulse_length_esc3 = minMax(pulse_length_esc3, 1100, 2000);
     pulse_length_esc4 = minMax(pulse_length_esc4, 1100, 2000);
 }
-
 
 /**
  * Calculate errors used by PID controller
@@ -454,8 +449,7 @@ void setupMpu6050Registers() {
  *
  * This function might take ~2sec for 2000 samples.
  */
-void calibrateMpu6050()
-{
+void calibrateMpu6050() {
     int max_samples = 2000;
 
     for (int i = 0; i < max_samples; i++) {
@@ -506,8 +500,7 @@ float minMax(float value, float min_value, float max_value) {
  *
  * @return bool
  */
-bool isStarted()
-{
+bool isStarted() {
     // When left stick is moved in the bottom left corner
     if (status == STOPPED && pulse_length[mode_mapping[YAW]] <= 1012 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
         status = STARTING;
@@ -536,8 +529,7 @@ bool isStarted()
 /**
  * Reset gyro's angles with accelerometer's angles.
  */
-void resetGyroAngles()
-{
+void resetGyroAngles() {
     gyro_angle[X] = acc_angle[X];
     gyro_angle[Y] = acc_angle[Y];
 }
@@ -545,8 +537,7 @@ void resetGyroAngles()
 /**
  * Reset motors' pulse length to 1000µs to totally stop them.
  */
-void stopAll()
-{
+void stopAll() {
     pulse_length_esc1 = 1000;
     pulse_length_esc2 = 1000;
     pulse_length_esc3 = 1000;
@@ -556,8 +547,7 @@ void stopAll()
 /**
  * Reset all PID controller's variables.
  */
-void resetPidController()
-{
+void resetPidController() {
     errors[YAW]   = 0;
     errors[PITCH] = 0;
     errors[ROLL]  = 0;
@@ -574,8 +564,7 @@ void resetPidController()
 /**
  * Calculate PID set points on axis YAW, PITCH, ROLL
  */
-void calculateSetPoints()
-{
+void calculateSetPoints() {
     pid_set_points[YAW]   = calculateYawSetPoint(pulse_length[mode_mapping[YAW]], pulse_length[mode_mapping[THROTTLE]]);
     pid_set_points[PITCH] = calculateSetPoint(measures[PITCH], pulse_length[mode_mapping[PITCH]]);
     pid_set_points[ROLL]  = calculateSetPoint(measures[ROLL], pulse_length[mode_mapping[ROLL]]);
@@ -588,8 +577,7 @@ void calculateSetPoints()
  * @param int   channel_pulse Pulse length of the corresponding receiver channel
  * @return float
  */
-float calculateSetPoint(float angle, int channel_pulse)
-{
+float calculateSetPoint(float angle, int channel_pulse) {
     float level_adjust = angle * 15; // TODO explain why 15
     float set_point    = 0;
 
@@ -663,49 +651,49 @@ bool isBatteryConnected() {
  * @see https://www.firediy.fr/article/utiliser-sa-radiocommande-avec-un-arduino-drone-ch-6
  */
 ISR(PCINT0_vect) {
-    current_time = micros();
+        current_time = micros();
 
-    // Channel 1 -------------------------------------------------
-    if (PINB & B00000001) {                                        // Is input 8 high ?
-        if (previous_state[CHANNEL1] == LOW) {                     // Input 8 changed from 0 to 1 (rising edge)
-            previous_state[CHANNEL1] = HIGH;                       // Save current state
-            timer[CHANNEL1] = current_time;                        // Save current time
+        // Channel 1 -------------------------------------------------
+        if (PINB & B00000001) {                                        // Is input 8 high ?
+            if (previous_state[CHANNEL1] == LOW) {                     // Input 8 changed from 0 to 1 (rising edge)
+                previous_state[CHANNEL1] = HIGH;                       // Save current state
+                timer[CHANNEL1] = current_time;                        // Save current time
+            }
+        } else if (previous_state[CHANNEL1] == HIGH) {                 // Input 8 changed from 1 to 0 (falling edge)
+            previous_state[CHANNEL1] = LOW;                            // Save current state
+            pulse_length[CHANNEL1] = current_time - timer[CHANNEL1];   // Calculate pulse duration & save it
         }
-    } else if (previous_state[CHANNEL1] == HIGH) {                 // Input 8 changed from 1 to 0 (falling edge)
-        previous_state[CHANNEL1] = LOW;                            // Save current state
-        pulse_length[CHANNEL1] = current_time - timer[CHANNEL1];   // Calculate pulse duration & save it
-    }
 
-    // Channel 2 -------------------------------------------------
-    if (PINB & B00000010) {                                        // Is input 9 high ?
-        if (previous_state[CHANNEL2] == LOW) {                     // Input 9 changed from 0 to 1 (rising edge)
-            previous_state[CHANNEL2] = HIGH;                       // Save current state
-            timer[CHANNEL2] = current_time;                        // Save current time
+        // Channel 2 -------------------------------------------------
+        if (PINB & B00000010) {                                        // Is input 9 high ?
+            if (previous_state[CHANNEL2] == LOW) {                     // Input 9 changed from 0 to 1 (rising edge)
+                previous_state[CHANNEL2] = HIGH;                       // Save current state
+                timer[CHANNEL2] = current_time;                        // Save current time
+            }
+        } else if (previous_state[CHANNEL2] == HIGH) {                 // Input 9 changed from 1 to 0 (falling edge)
+            previous_state[CHANNEL2] = LOW;                            // Save current state
+            pulse_length[CHANNEL2] = current_time - timer[CHANNEL2];   // Calculate pulse duration & save it
         }
-    } else if (previous_state[CHANNEL2] == HIGH) {                 // Input 9 changed from 1 to 0 (falling edge)
-        previous_state[CHANNEL2] = LOW;                            // Save current state
-        pulse_length[CHANNEL2] = current_time - timer[CHANNEL2];   // Calculate pulse duration & save it
-    }
 
-    // Channel 3 -------------------------------------------------
-    if (PINB & B00000100) {                                        // Is input 10 high ?
-        if (previous_state[CHANNEL3] == LOW) {                     // Input 10 changed from 0 to 1 (rising edge)
-            previous_state[CHANNEL3] = HIGH;                       // Save current state
-            timer[CHANNEL3] = current_time;                        // Save current time
+        // Channel 3 -------------------------------------------------
+        if (PINB & B00000100) {                                        // Is input 10 high ?
+            if (previous_state[CHANNEL3] == LOW) {                     // Input 10 changed from 0 to 1 (rising edge)
+                previous_state[CHANNEL3] = HIGH;                       // Save current state
+                timer[CHANNEL3] = current_time;                        // Save current time
+            }
+        } else if (previous_state[CHANNEL3] == HIGH) {                 // Input 10 changed from 1 to 0 (falling edge)
+            previous_state[CHANNEL3] = LOW;                            // Save current state
+            pulse_length[CHANNEL3] = current_time - timer[CHANNEL3];   // Calculate pulse duration & save it
         }
-    } else if (previous_state[CHANNEL3] == HIGH) {                 // Input 10 changed from 1 to 0 (falling edge)
-        previous_state[CHANNEL3] = LOW;                            // Save current state
-        pulse_length[CHANNEL3] = current_time - timer[CHANNEL3];   // Calculate pulse duration & save it
-    }
 
-    // Channel 4 -------------------------------------------------
-    if (PINB & B00001000) {                                        // Is input 11 high ?
-        if (previous_state[CHANNEL4] == LOW) {                     // Input 11 changed from 0 to 1 (rising edge)
-            previous_state[CHANNEL4] = HIGH;                       // Save current state
-            timer[CHANNEL4] = current_time;                        // Save current time
+        // Channel 4 -------------------------------------------------
+        if (PINB & B00001000) {                                        // Is input 11 high ?
+            if (previous_state[CHANNEL4] == LOW) {                     // Input 11 changed from 0 to 1 (rising edge)
+                previous_state[CHANNEL4] = HIGH;                       // Save current state
+                timer[CHANNEL4] = current_time;                        // Save current time
+            }
+        } else if (previous_state[CHANNEL4] == HIGH) {                 // Input 11 changed from 1 to 0 (falling edge)
+            previous_state[CHANNEL4] = LOW;                            // Save current state
+            pulse_length[CHANNEL4] = current_time - timer[CHANNEL4];   // Calculate pulse duration & save it
         }
-    } else if (previous_state[CHANNEL4] == HIGH) {                 // Input 11 changed from 1 to 0 (falling edge)
-        previous_state[CHANNEL4] = LOW;                            // Save current state
-        pulse_length[CHANNEL4] = current_time - timer[CHANNEL4];   // Calculate pulse duration & save it
-    }
 }
