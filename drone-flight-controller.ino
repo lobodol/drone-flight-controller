@@ -576,7 +576,7 @@ void resetPidController()
  */
 void calculateSetPoints()
 {
-    pid_set_points[YAW]   = calculateSetPoint(0, pulse_length[mode_mapping[YAW]]);
+    pid_set_points[YAW]   = calculateYawSetPoint(pulse_length[mode_mapping[YAW]], pulse_length[mode_mapping[THROTTLE]]);
     pid_set_points[PITCH] = calculateSetPoint(measures[PITCH], pulse_length[mode_mapping[PITCH]]);
     pid_set_points[ROLL]  = calculateSetPoint(measures[ROLL], pulse_length[mode_mapping[ROLL]]);
 }
@@ -602,6 +602,25 @@ float calculateSetPoint(float angle, int channel_pulse)
 
     set_point -= level_adjust;
     set_point /= 3;
+
+    return set_point;
+}
+
+/**
+ * Calculate the PID set point of YAW axis in °/s
+ *
+ * @param int yaw_pulse      Receiver pulse length of yaw's channel
+ * @param int throttle_pulse Receiver pulse length of throttle's channel
+ * @return float
+ */
+float calculateYawSetPoint(int yaw_pulse, int throttle_pulse) {
+    float set_point = 0;
+
+    // Do not yaw when turning off the motors
+    if (throttle_pulse > 1050) {
+        // There is no notion of angle on this axis as the quadcopter can turn on itself
+        set_point = calculateSetPoint(0, yaw_pulse);
+    }
 
     return set_point;
 }
