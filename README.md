@@ -109,6 +109,12 @@ void pidController() {
 * Nose **up** implies a positive pitch
 * Nose **right** implies a positive yaw
 
+The MPU6050 must be oriented as following:
+
+* X axis : roll
+* Y axis : pitch
+* Z axis : yaw
+
 ## 6. Start/stop
 This sketch comes with a safety process : to start the quadcopter, move the left stick of the remote in the bottom left corner. Then move it back in center position.
 
