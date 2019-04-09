@@ -77,15 +77,13 @@ void configureChannelMapping() {
 
 ### 4.2 PID tuning
 The default PID coeffcient values might work for an F450-like quadcopter.
-However, you can tune them in the begining of the function `pidController()`:
+However, you can tune them in the global variable declaration section:
 
 ```c
-void pidController() {
-    float Kp[3]        = {4.0, 1.3, 1.3};    // P coefficients in that order : Yaw, Pitch, Roll
-    float Ki[3]        = {0.02, 0.04, 0.04}; // I coefficients in that order : Yaw, Pitch, Roll
-    float Kd[3]        = {0, 18, 18};        // D coefficients in that order : Yaw, Pitch, Roll
-    // ...
-}
+// PID coefficients
+float Kp[3] = {4.0, 1.3, 1.3};    // P coefficients in that order : Yaw, Pitch, Roll
+float Ki[3] = {0.02, 0.04, 0.04}; // I coefficients in that order : Yaw, Pitch, Roll
+float Kd[3] = {0, 18, 18};        // D coefficients in that order : Yaw, Pitch, Roll
 ````
 
 ## 5. Quadcopter orientation
