@@ -29,18 +29,6 @@
 #define STARTING 1
 #define STARTED  2
 // ---------------- Receiver variables ---------------------------------------
-/**
- * Received flight instructions formatted with good units, in that order : [Yaw, Pitch, Roll, Throttle]
- * Units:
- *  - Yaw      : degree/sec
- *  - Pitch    : degree
- *  - Roll     : degree
- *  - Throttle : µs
- *
- * @var float[]
- */
-float instruction[4];
-
 // Previous state of each channel (HIGH or LOW)
 volatile byte previous_state[4];
 
@@ -383,23 +371,6 @@ void calculateErrors() {
     previous_error[YAW]   = errors[YAW];
     previous_error[PITCH] = errors[PITCH];
     previous_error[ROLL]  = errors[ROLL];
-}
-
-/**
- * Calculate real value of flight instructions from pulses length of each channel.
- *
- * - Roll     : from -33° to 33°
- * - Pitch    : from -33° to 33°
- * - Yaw      : from -180°/sec to 180°/sec
- * - Throttle : from 1000µs to 1800µs
- *
- * @deprecated
- */
-void getFlightInstruction() {
-    instruction[YAW]      = map(pulse_length[mode_mapping[YAW]], 1000, 2000, -180, 180);
-    instruction[PITCH]    = map(pulse_length[mode_mapping[PITCH]], 1000, 2000, 33, -33);
-    instruction[ROLL]     = map(pulse_length[mode_mapping[ROLL]], 1000, 2000, -33, 33);
-    instruction[THROTTLE] = map(pulse_length[mode_mapping[THROTTLE]], 1000, 2000, 1000, 1800); // Get some room to keep control at full speed
 }
 
 /**
