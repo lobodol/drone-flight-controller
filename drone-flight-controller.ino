@@ -369,6 +369,11 @@ void calculateErrors() {
     error_sum[PITCH] += errors[PITCH];
     error_sum[ROLL]  += errors[ROLL];
 
+    // Keep values in acceptable range
+    error_sum[YAW]   = minMax(error_sum[YAW],   -400/Ki[YAW],   400/Ki[YAW]);
+    error_sum[PITCH] = minMax(error_sum[PITCH], -400/Ki[PITCH], 400/Ki[PITCH]);
+    error_sum[ROLL]  = minMax(error_sum[ROLL],  -400/Ki[ROLL],  400/Ki[ROLL]);
+
     // Calculate error delta : Derivative coefficients
     delta_err[YAW]   = errors[YAW]   - previous_error[YAW];
     delta_err[PITCH] = errors[PITCH] - previous_error[PITCH];
