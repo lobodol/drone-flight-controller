@@ -110,6 +110,8 @@ float previous_error[3] = {0, 0, 0}; // Last errors (used for derivative compone
  */
 int status = STOPPED;
 // ---------------------------------------------------------------------------
+int battery_voltage;
+// ---------------------------------------------------------------------------
 
 /**
  * Setup configuration
@@ -168,6 +170,8 @@ void loop() {
     if (isStarted()) {
         // 5. Calculate motors speed with PID controller
         pidController();
+
+        compensateBatteryDrop();
     }
 
     // 6. Apply motors speed
@@ -558,6 +562,31 @@ void resetPidController()
     previous_error[YAW]   = 0;
     previous_error[PITCH] = 0;
     previous_error[ROLL]  = 0;
+}
+
+/**
+ * Compensate battery drop applying a coefficient on output values
+ */
+void compensateBatteryDrop() {
+    if (isBatteryConnected()) {
+        pulse_length_esc1 += pulse_length_esc1 * ((1240 - battery_voltage) / (float) 3500);
+        pulse_length_esc2 += pulse_length_esc2 * ((1240 - battery_voltage) / (float) 3500);
+        pulse_length_esc3 += pulse_length_esc3 * ((1240 - battery_voltage) / (float) 3500);
+        pulse_length_esc4 += pulse_length_esc4 * ((1240 - battery_voltage) / (float) 3500);
+    }
+}
+
+/**
+ * Read battery voltage & return whether the battery seems connected
+ *
+ * @return boolean
+ */
+bool isBatteryConnected() {
+    // A complementary filter is used to reduce noise.
+    // 0.09853 = 0.08 * 1.2317.
+    battery_voltage = battery_voltage * 0.92 + (analogRead(0) + 65) * 0.09853;
+
+    return battery_voltage < 1240 && battery_voltage > 800;
 }
 
 /**
