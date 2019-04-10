@@ -119,3 +119,5 @@ The MPU6050 must be oriented as following:
 This sketch comes with a safety process : to start the quadcopter, move the left stick of the remote in the bottom left corner. Then move it back in center position.
 
 To stop the quadcopter, move the left stick in the bottom right corner.
+
+![State machine](https://www.firediy.fr/images/articles/pid-drone/state_machine.jpg)
