@@ -249,7 +249,7 @@ void calculateAngles() {
     measures[PITCH] = measures[PITCH] * 0.9 + gyro_angle[Y] * 0.1;
     measures[YAW]   = -gyro_raw[Z] / SSF_GYRO; // Store the angular motion for this axis
 
-    // TODO why this filter ?
+    // Apply low-pass filter (10Hz cutoff frequency)
     angular_motions[ROLL]  = 0.7 * angular_motions[ROLL]  + 0.3 * gyro_raw[X] / SSF_GYRO;
     angular_motions[PITCH] = 0.7 * angular_motions[PITCH] + 0.3 * gyro_raw[Y] / SSF_GYRO;
     angular_motions[YAW]   = 0.7 * angular_motions[YAW]   + 0.3 * gyro_raw[Z] / SSF_GYRO;
