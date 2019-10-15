@@ -607,8 +607,7 @@ void compensateBatteryDrop() {
  * @return boolean
  */
 bool isBatteryConnected() {
-    // A complementary filter is used to reduce noise.
-    // 0.09853 = 0.08 * 1.2317.
+    // Reduce noise with a low-pass filter (10Hz cutoff frequency)
     battery_voltage = battery_voltage * 0.92 + (analogRead(0) + 65) * 0.09853;
 
     return battery_voltage < 1240 && battery_voltage > 800;
