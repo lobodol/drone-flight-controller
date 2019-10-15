@@ -554,7 +554,7 @@ void calculateSetPoints() {
  * @return float
  */
 float calculateSetPoint(float angle, int channel_pulse) {
-    float level_adjust = angle * 15; // TODO explain why 15
+    float level_adjust = angle * 15; // Value 15 limits maximum angle value to ±32.8°
     float set_point    = 0;
 
     // Need a dead band of 16µs for better result
