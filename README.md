@@ -11,6 +11,8 @@ The frame of the quadcopter is based on the [F450](https://www.qwant.com/?q=f450
 
 You can use [this](https://github.com/lobodol/ESC-calibration) to calibrate your ESCs.
 
+A detailed article is available [here](https://www.firediy.fr/article/asservissement-pid-drone-ch-8) (in french)
+
 (i) Currently under active development.
 
 ## 2. Requirements
