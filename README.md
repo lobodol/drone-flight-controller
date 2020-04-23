@@ -17,7 +17,7 @@ A detailed article is available [here](https://www.firediy.fr/article/asservisse
 
 ## 2. Requirements
 Arduino libraries:
-* Wire
+* [Wire](https://www.arduino.cc/en/Reference/Wire)
 
 ## 3. Pin connection:
 ```
