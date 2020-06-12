@@ -1,6 +1,8 @@
-# Quadcopter PID implementation
+#  Quadcopter PID implementation
 [![Build Status](https://travis-ci.org/lobodol/drone-flight-controller.svg?branch=master)](https://travis-ci.org/lobodol/drone-flight-controller)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+[![flight](https://www.firediy.fr/images/articles/pid-drone/flight1.jpg)](https://www.firediy.fr/article/asservissement-pid-drone-ch-8)
  
 ## 1. Introduction
 
