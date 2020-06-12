@@ -1,6 +1,7 @@
 # Quadcopter PID implementation
 [![Build Status](https://travis-ci.org/lobodol/drone-flight-controller.svg?branch=master)](https://travis-ci.org/lobodol/drone-flight-controller)
-
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+ 
 ## 1. Introduction
 
 This Arduino sketch provides a flight controller for an X quadcopter based on an Arduino Uno board and the [MPU6050 sensor](https://www.invensense.com/wp-content/uploads/2015/02/MPU-6000-Datasheet1.pdf).
