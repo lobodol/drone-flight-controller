@@ -117,7 +117,7 @@ int battery_voltage;
 void setup() {
     // Start I2C communication
     Wire.begin();
-    TWBR = 24; // 400kHz I2C clock (200kHz if CPU is 8MHz)
+    TWBR = 12; // Set the I2C clock speed to 400kHz.
 
     // Turn LED on during setup
     pinMode(13, OUTPUT);
