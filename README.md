@@ -14,7 +14,7 @@ The frame of the quadcopter is based on the [F450](https://www.qwant.com/?q=f450
 
 You can use [this](https://github.com/lobodol/ESC-calibration) to calibrate your ESCs.
 
-A detailed article is available [here](https://www.firediy.fr/article/asservissement-pid-drone-ch-8) (in french)
+A detailed article is available [here](https://www.firediy.fr/article/asservissement-pid-drone-ch-8) (in french).
 
 (i) Currently under active development.
 
@@ -50,8 +50,8 @@ Arduino libraries:
                     +---------------------+
   
 Legend:
-Mx : Motor X
-Cx : Receiver channel x
+Mx: Motor X
+Cx: Receiver channel x
 ```
 
 ## 4. Configuration
@@ -60,7 +60,7 @@ By default, this sketch uses the mode 2 for RF remote, according to the followin
 
 ![remote modes](https://www.firediy.fr/images/articles/drone6/remote_modes.jpg)
 
-The channel mapping is then :
+The channel mapping is then:
 
 | Channel | Command    |
 | :-----: | :--------: |
@@ -102,10 +102,10 @@ float Kd[3] = {0, 18, 18};        // D coefficients in that order : Yaw, Pitch, 
 (3) (4)
 ```
 
-* Motor 1 : front left  - clockwise
-* Motor 2 : front right - counter-clockwise
-* Motor 3 : rear left   - clockwise
-* Motor 4 : rear left   - counter-clockwise
+* Motor 1: front left  - clockwise
+* Motor 2: front right - counter-clockwise
+* Motor 3: rear left   - clockwise
+* Motor 4: rear left   - counter-clockwise
 
 ![Paper plane](https://www.firediy.fr/images/articles/drone-1/ypr.jpg)
 * Left wing **up** implies a positive roll
@@ -114,12 +114,12 @@ float Kd[3] = {0, 18, 18};        // D coefficients in that order : Yaw, Pitch, 
 
 The MPU6050 must be oriented as following:
 
-* X axis : roll
-* Y axis : pitch
-* Z axis : yaw
+* X axis: roll
+* Y axis: pitch
+* Z axis: yaw
 
 ## 6. Start/stop
-This sketch comes with a safety process : to start the quadcopter, move the left stick of the remote in the bottom left corner. Then move it back in center position.
+This sketch comes with a safety process: to start the quadcopter, move the left stick of the remote in the bottom left corner. Then move it back in center position.
 
 To stop the quadcopter, move the left stick in the bottom right corner.
 
