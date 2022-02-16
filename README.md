@@ -124,3 +124,19 @@ This sketch comes with a safety process: to start the quadcopter, move the left 
 To stop the quadcopter, move the left stick in the bottom right corner.
 
 ![State machine](https://www.firediy.fr/images/articles/pid-drone/state_machine.jpg)
+
+
+## 7. Debug
+If you need to print debug messages, make sure to init Serial at **57600 bauds**:
+
+```c
+void setup() {
+  Serial.begin(57600);
+  // ...
+}
+
+void loop() {
+  Serial.println(measures[ROLL]);
+  // ...
+}
+```
