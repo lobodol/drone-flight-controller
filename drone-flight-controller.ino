@@ -1,8 +1,6 @@
 /**
  * The software is provided "as is", without any warranty of any kind.
  * Feel free to edit it if needed.
- *
- * @author lobodol <grobodol@gmail.com>
  */
 
 // ---------------------------------------------------------------------------
