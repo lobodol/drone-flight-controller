@@ -126,7 +126,51 @@ To stop the quadcopter, move the left stick in the bottom right corner.
 ![State machine](https://www.firediy.fr/images/articles/pid-drone/state_machine.jpg)
 
 
-## 7. Debug
+## 7. Unit tests
+
+Pure utility functions are extracted into `src/utils.h` and covered by unit tests
+that run on the host machine — no Arduino required.
+
+Tests use PlatformIO's **native** environment and the
+[Unity](https://github.com/ThrowTheSwitch/Unity) test framework.
+
+### Prerequisites
+
+If `pio` is not on your `PATH` (e.g. installed via the VS Code extension), add it once:
+
+```bash
+export PATH="$HOME/.platformio/penv/bin:$PATH"
+```
+
+Or add that line to your `~/.zshrc` / `~/.bashrc` to make it permanent.
+
+### Run all test suites
+
+```bash
+pio test -e native
+```
+
+### Run a single suite
+
+```bash
+pio test -e native -f test_min_max
+```
+
+### Covered functions
+
+| Function | Test suite |
+| :--- | :--- |
+| `minMax` | `test/test_min_max/` |
+| `calculateSetPoint` | `test/test_calculate_set_point/` |
+| `calculateYawSetPoint` | `test/test_calculate_yaw_set_point/` |
+
+### Verify the sketch still compiles for the Uno
+
+```bash
+pio run -e uno
+```
+
+## 8. Debug
 If you need to print debug messages, make sure to init Serial at **57600 bauds**:
 
 ```c
