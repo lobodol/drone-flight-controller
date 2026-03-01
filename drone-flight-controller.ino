@@ -5,6 +5,7 @@
 
 // ---------------------------------------------------------------------------
 #include <Wire.h>
+#include "src/utils.h"
 // ------------------- Define some constants for convenience -----------------
 #define CHANNEL1 0
 #define CHANNEL2 1
@@ -448,24 +449,6 @@ void calibrateMpu6050() {
     gyro_offset[Z] /= max_samples;
 }
 
-/**
- * Make sure that given value is not over min_value/max_value range.
- *
- * @param float value     : The value to convert
- * @param float min_value : The min value
- * @param float max_value : The max value
- *
- * @return float
- */
-float minMax(float value, float min_value, float max_value) {
-    if (value > max_value) {
-        value = max_value;
-    } else if (value < min_value) {
-        value = min_value;
-    }
-
-    return value;
-}
 
 /**
  * Return whether the throttle stick is in the idle position (bottom).
@@ -563,48 +546,6 @@ void calculateSetPoints() {
     pid_set_points[ROLL]  = calculateSetPoint(measures[ROLL], pulse_length[mode_mapping[ROLL]]);
 }
 
-/**
- * Calculate the PID set point in °/s
- *
- * @param float angle         Measured angle (in °) on an axis
- * @param int   channel_pulse Pulse length of the corresponding receiver channel
- * @return float
- */
-float calculateSetPoint(float angle, int channel_pulse) {
-    float level_adjust = angle * 15; // Value 15 limits maximum angle value to ±32.8°
-    float set_point    = 0;
-
-    // Need a dead band of 16µs for better result
-    if (channel_pulse > 1508) {
-        set_point = channel_pulse - 1508;
-    } else if (channel_pulse <  1492) {
-        set_point = channel_pulse - 1492;
-    }
-
-    set_point -= level_adjust;
-    set_point /= 3;
-
-    return set_point;
-}
-
-/**
- * Calculate the PID set point of YAW axis in °/s
- *
- * @param int yaw_pulse      Receiver pulse length of yaw's channel
- * @param int throttle_pulse Receiver pulse length of throttle's channel
- * @return float
- */
-float calculateYawSetPoint(int yaw_pulse, int throttle_pulse) {
-    float set_point = 0;
-
-    // Do not yaw when turning off the motors
-    if (throttle_pulse > 1050) {
-        // There is no notion of angle on this axis as the quadcopter can turn on itself
-        set_point = calculateSetPoint(0, yaw_pulse);
-    }
-
-    return set_point;
-}
 
 /**
  * Compensate battery drop applying a coefficient on output values
