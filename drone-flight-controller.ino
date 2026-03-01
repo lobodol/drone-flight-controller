@@ -111,9 +111,27 @@ int battery_voltage;
 // ---------------------------------------------------------------------------
 
 /**
+ * Configure ESC output pins and feed them a low-throttle pulse for ~5 s so
+ * they can complete their startup sequence (melody → cell detection → arming
+ * confirmation) before the rest of setup runs.
+ * Period: 1000 µs HIGH + 3000 µs LOW = 4 ms → 1250 iterations ≈ 5 s.
+ */
+void initEscs() {
+    DDRD |= B11110000; // Set pins 4-7 as outputs
+    for (int i = 0; i < 1250; i++) {
+        PORTD |= B11110000;       // Set pins 4-7 HIGH
+        delayMicroseconds(1000);  // 1000 µs pulse (minimum throttle)
+        PORTD &= B00001111;       // Set pins 4-7 LOW
+        delayMicroseconds(3000);  // remainder of 4 ms period
+    }
+}
+
+/**
  * Setup configuration
  */
 void setup() {
+    initEscs();
+
     // Start I2C communication
     Wire.begin();
     TWBR = 12; // Set the I2C clock speed to 400kHz.
@@ -121,9 +139,6 @@ void setup() {
     // Turn LED on during setup
     pinMode(13, OUTPUT);
     digitalWrite(13, HIGH);
-
-    // Set pins #4 #5 #6 #7 as outputs
-    DDRD |= B11110000;
 
     setupMpu6050Registers();
 
