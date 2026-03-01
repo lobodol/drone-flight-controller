@@ -468,6 +468,25 @@ float minMax(float value, float min_value, float max_value) {
 }
 
 /**
+ * Return whether the throttle stick is in the idle position (bottom).
+ *
+ * @return bool
+ */
+bool isThrottleIdle() {
+    return pulse_length[mode_mapping[THROTTLE]] <= 1012;
+}
+
+/**
+ * Return whether the yaw stick is centred within the receiver dead band (±8µs around 1500µs).
+ * An exact equality check is unreliable because RC receivers have ±5–15µs of timing jitter.
+ *
+ * @return bool
+ */
+bool isYawCentered() {
+    return pulse_length[mode_mapping[YAW]] >= 1492 && pulse_length[mode_mapping[YAW]] <= 1508;
+}
+
+/**
  * Return whether the quadcopter is started.
  * To start the quadcopter, move the left stick in bottom left corner then, move it back in center position.
  * To stop the quadcopter move the left stick in bottom right corner.
@@ -476,12 +495,12 @@ float minMax(float value, float min_value, float max_value) {
  */
 bool isStarted() {
     // When left stick is moved in the bottom left corner
-    if (status == STOPPED && pulse_length[mode_mapping[YAW]] <= 1012 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
+    if (status == STOPPED && pulse_length[mode_mapping[YAW]] <= 1012 && isThrottleIdle()) {
         status = STARTING;
     }
 
     // When left stick is moved back in the center position
-    if (status == STARTING && pulse_length[mode_mapping[YAW]] == 1500 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
+    if (status == STARTING && isYawCentered() && isThrottleIdle()) {
         status = STARTED;
 
         // Reset PID controller's variables to prevent bump start
@@ -491,7 +510,7 @@ bool isStarted() {
     }
 
     // When left stick is moved in the bottom right corner
-    if (status == STARTED && pulse_length[mode_mapping[YAW]] >= 1988 && pulse_length[mode_mapping[THROTTLE]] <= 1012) {
+    if (status == STARTED && pulse_length[mode_mapping[YAW]] >= 1988 && isThrottleIdle()) {
         status = STOPPED;
         // Make sure to always stop motors when status is STOPPED
         stopAll();
