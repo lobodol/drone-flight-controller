@@ -56,7 +56,7 @@ int acc_raw[3] = {0 ,0 ,0};
 float acc_angle[3] = {0,0,0};
 
 // Total 3D acceleration vector in m/s²
-long acc_total_vector;
+float acc_total_vector;
 
 // Calculated angular motion on each axis: Yaw, Pitch, Roll
 float angular_motions[3] = {0, 0, 0};
@@ -279,12 +279,12 @@ void calculateAccelerometerAngles() {
     acc_total_vector = sqrt(pow(acc_raw[X], 2) + pow(acc_raw[Y], 2) + pow(acc_raw[Z], 2));
 
     // To prevent asin to produce a NaN, make sure the input value is within [-1;+1]
-    if (abs(acc_raw[X]) < acc_total_vector) {
-        acc_angle[X] = asin((float)acc_raw[Y] / acc_total_vector) * (180 / PI); // asin gives angle in radian. Convert to degree multiplying by 180/pi
+    if (abs(acc_raw[Y]) < acc_total_vector) {
+        acc_angle[X] = asin((float)acc_raw[Y] / acc_total_vector) * (180.0 / PI); // asin gives angle in radian. Convert to degree multiplying by 180/pi
     }
 
-    if (abs(acc_raw[Y]) < acc_total_vector) {
-        acc_angle[Y] = asin((float)acc_raw[X] / acc_total_vector) * (180 / PI);
+    if (abs(acc_raw[X]) < acc_total_vector) {
+        acc_angle[Y] = asin((float)acc_raw[X] / acc_total_vector) * (180.0 / PI);
     }
 }
 
