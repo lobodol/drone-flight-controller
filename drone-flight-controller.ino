@@ -47,23 +47,23 @@ int gyro_raw[3] = {0,0,0};
 // Average gyro offsets of each axis in that order: X, Y, Z
 long gyro_offset[3] = {0, 0, 0};
 
-// Calculated angles from gyro's values in that order: X, Y, Z
+// Calculated angles (in °) from gyro's values in that order: X, Y, Z
 float gyro_angle[3]  = {0,0,0};
 
 // The RAW values got from accelerometer (in m/sec²) in that order: X, Y, Z
 int acc_raw[3] = {0 ,0 ,0};
 
-// Calculated angles from accelerometer's values in that order: X, Y, Z
+// Calculated angles (in °) from accelerometer's values in that order: X, Y, Z
 float acc_angle[3] = {0,0,0};
 
 // Total 3D acceleration vector in m/s²
 float acc_total_vector;
 
-// Calculated angular motion on each axis: Yaw, Pitch, Roll
+// Calculated angular motion on each axis (in °/s): Yaw, Pitch, Roll
 float angular_motions[3] = {0, 0, 0};
 
 /**
- * Real measures on 3 axis calculated from gyro AND accelerometer in that order : Yaw, Pitch, Roll
+ * Real measures on 3 axis calculated from gyro AND accelerometer in that order : Yaw (in °/s), Pitch (in °), Roll (in °)
  *  - Left wing up implies a positive roll
  *  - Nose up implies a positive pitch
  *  - Nose right implies a positive yaw
@@ -259,14 +259,14 @@ void calculateAngles() {
     }
 
     // To dampen the pitch and roll angles a complementary filter is used
-    measures[ROLL]  = measures[ROLL]  * 0.9 + gyro_angle[X] * 0.1;
-    measures[PITCH] = measures[PITCH] * 0.9 + gyro_angle[Y] * 0.1;
-    measures[YAW]   = -gyro_raw[Z] / SSF_GYRO; // Store the angular motion for this axis
+    measures[ROLL]  = measures[ROLL]  * 0.9 + gyro_angle[X] * 0.1; // In °
+    measures[PITCH] = measures[PITCH] * 0.9 + gyro_angle[Y] * 0.1; // In °
+    measures[YAW]   = -gyro_raw[Z] / SSF_GYRO; // Negated: MPU-6050 Z axis is negative for a clockwise (rightward) yaw. Store the angular motion for this axis
 
     // Apply low-pass filter (10Hz cutoff frequency)
     angular_motions[ROLL]  = 0.7 * angular_motions[ROLL]  + 0.3 * gyro_raw[X] / SSF_GYRO;
     angular_motions[PITCH] = 0.7 * angular_motions[PITCH] + 0.3 * gyro_raw[Y] / SSF_GYRO;
-    angular_motions[YAW]   = 0.7 * angular_motions[YAW]   + 0.3 * gyro_raw[Z] / SSF_GYRO;
+    angular_motions[YAW]   = 0.7 * angular_motions[YAW]   - 0.3 * gyro_raw[Z] / SSF_GYRO; // Subtracted: same sign convention as measures[YAW]
 }
 
 /**
