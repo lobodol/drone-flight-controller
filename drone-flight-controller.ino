@@ -367,9 +367,16 @@ void calculateErrors() {
     errors[ROLL]  = angular_motions[ROLL]  - pid_set_points[ROLL];
 
     // Calculate sum of errors : Integral coefficients
-    error_sum[YAW]   += errors[YAW];
-    error_sum[PITCH] += errors[PITCH];
-    error_sum[ROLL]  += errors[ROLL];
+    if (pulse_length[mode_mapping[THROTTLE]] < 1050) {
+        // Motors cannot correct anything at idle throttle: do not let the integral wind up on the ground
+        error_sum[YAW]   = 0;
+        error_sum[PITCH] = 0;
+        error_sum[ROLL]  = 0;
+    } else {
+        error_sum[YAW]   += errors[YAW];
+        error_sum[PITCH] += errors[PITCH];
+        error_sum[ROLL]  += errors[ROLL];
+    }
 
     // Keep values in acceptable range
     error_sum[YAW]   = minMax(error_sum[YAW],   -400/Ki[YAW],   400/Ki[YAW]);
