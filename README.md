@@ -104,8 +104,8 @@ float Kd[3] = {0, 18, 18};        // D coefficients in that order : Yaw, Pitch, 
 
 * Motor 1: front left  - clockwise
 * Motor 2: front right - counter-clockwise
-* Motor 3: rear left   - clockwise
-* Motor 4: rear left   - counter-clockwise
+* Motor 3: rear left   - counter-clockwise
+* Motor 4: rear left   - clockwise
 
 ![Paper plane](https://www.firediy.fr/images/articles/drone-1/ypr.jpg)
 * Left wing **up** implies a positive roll
